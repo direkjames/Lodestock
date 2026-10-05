@@ -16,7 +16,7 @@ dependencies {
     compileOnly("org.purpurmc.purpur:purpur-api:26.1.2.build.2583-stable")
 
     // Add after you get your bStats plugin ID (use the version bStats shows you):
-    // implementation("org.bstats:bstats-bukkit:3.1.0")
+    implementation("org.bstats:bstats-bukkit:3.2.1")
 }
 
 tasks.processResources {
@@ -33,7 +33,7 @@ tasks.shadowJar {
     archiveClassifier.set("")
     archiveBaseName.set("Lodestock-Paper")
     // When you add bStats, uncomment this:
-    // relocate("org.bstats", "io.github.direkjames.lodestock.libs.bstats")
+    relocate("org.bstats", "io.github.direkjames.lodestock.libs.bstats")
 }
 
 tasks.build {
