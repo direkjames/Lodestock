@@ -1,0 +1,77 @@
+categories:
+  overworld:
+    icon: minecraft:iron_pickaxe
+    name: "<green>Overworld"
+  nether:
+    icon: minecraft:netherrack
+    name: "<red>Nether"
+
+items:
+  minecraft:coal:
+    category: overworld
+    base-price: 3.0
+    start-stock: 200
+    max-stock: 2000
+  minecraft:copper_ingot:
+    category: overworld
+    base-price: 4.0
+    start-stock: 200
+    max-stock: 2000
+  minecraft:iron_ingot:
+    category: overworld
+    base-price: 8.0
+    start-stock: 150
+    max-stock: 1500
+  minecraft:gold_ingot:
+    category: overworld
+    base-price: 20.0
+    start-stock: 100
+    max-stock: 1000
+  minecraft:lapis_lazuli:
+    category: overworld
+    base-price: 5.0
+    start-stock: 150
+    max-stock: 1500
+  minecraft:redstone:
+    category: overworld
+    base-price: 3.0
+    start-stock: 200
+    max-stock: 2000
+  minecraft:amethyst_shard:
+    category: overworld
+    base-price: 8.0
+    start-stock: 100
+    max-stock: 1000
+  minecraft:emerald:
+    category: overworld
+    base-price: 40.0
+    start-stock: 50
+    max-stock: 500
+  minecraft:diamond:
+    category: overworld
+    base-price: 80.0
+    start-stock: 50
+    max-stock: 500
+  minecraft:quartz:
+    category: nether
+    base-price: 6.0
+    start-stock: 150
+    max-stock: 1500
+  minecraft:netherite_scrap:
+    category: nether
+    base-price: 150.0
+    start-stock: 20
+    max-stock: 200
+
+  # OPTIONAL: storage blocks are off by default. Remove the # to enable them.
+  # Set the price to about 9x the ingot so players can't profit from crafting.
+  # minecraft:iron_block:
+  #   category: overworld
+  #   base-price: 72.0
+  #   start-stock: 20
+  #   max-stock: 200
+  # minecraft:diamond_block:
+  #   category: overworld
+  #   base-price: 720.0
+  #   start-stock: 5
+  #   max-stock: 50
