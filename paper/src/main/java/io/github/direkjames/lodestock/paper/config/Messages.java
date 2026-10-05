@@ -42,9 +42,9 @@ public final class Messages {
         }
     }
 
-    /** Parses MiniMessage text such as a category name from items.yml. */
-    public static Component mini(String raw) {
-        return MM.deserialize(raw);
+    /** Parses MiniMessage text such as a title or button name from gui.yml. */
+    public static Component mini(String raw, TagResolver... resolvers) {
+        return MM.deserialize(raw, resolvers);
     }
 
     private String raw(String key) {

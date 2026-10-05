@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ArrayList;
 
 /**
  * Market logic with no Minecraft code. The platform checks the player's money and
@@ -125,6 +126,63 @@ public final class Market {
             stock++;
         }
         update(id, new ItemState(price, stock));
+    }
+
+    public synchronized MarketSettings settings() { return settings; }
+
+    /** Admin: sets the current price. Must be at least the price floor. */
+    public synchronized void setPrice(String id, double price) {
+        ItemState s = require(id);
+        if (price < settings.priceFloor()) {
+            throw new IllegalArgumentException("price must be at least " + settings.priceFloor());
+        }
+        update(id, new ItemState(price, s.stock()));
+    }
+
+    /** Admin: sets the current stock, from 0 up to the item's max stock. */
+    public synchronized void setStock(String id, int stock) {
+        ItemState s = require(id);
+        MarketItem item = items.get(id);
+        if (stock < 0 || stock > item.maxStock()) {
+            throw new IllegalArgumentException("stock must be from 0 to " + item.maxStock());
+        }
+        update(id, new ItemState(s.price(), stock));
+    }
+
+    /** Admin: back to the base price and starting stock. */
+    public synchronized void reset(String id) {
+        require(id);
+        MarketItem item = items.get(id);
+        update(id, new ItemState(item.basePrice(), item.startStock()));
+    }
+
+    public synchronized void resetAll() {
+        for (MarketItem item : items.values()) {
+            states.put(item.id(), new ItemState(item.basePrice(), item.startStock()));
+        }
+        storage.saveAll(new HashMap<>(states));
+    }
+
+    /**
+     * Admin: changes prices by a percentage (-20 cuts 20%, +50 raises 50%).
+     * {@code id} null means every item. Prices never go below the floor.
+     * @return how many items were changed
+     */
+    public synchronized int adjustPrices(String id, double percent) {
+        if (percent <= -100) throw new IllegalArgumentException("percent must be above -100");
+        List<String> targets = new ArrayList<>();
+        if (id == null) targets.addAll(states.keySet());
+        else {
+            require(id);
+            targets.add(id);
+        }
+        double factor = 1 + percent / 100.0;
+        for (String target : targets) {
+            ItemState s = states.get(target);
+            states.put(target, new ItemState(Math.max(settings.priceFloor(), s.price() * factor), s.stock()));
+        }
+        storage.saveAll(new HashMap<>(states));
+        return targets.size();
     }
 
     /** Writes everything to storage. */

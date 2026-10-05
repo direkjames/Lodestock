@@ -1,22 +1,19 @@
 # Shown wherever a message contains <prefix>. Change it here, or remove <prefix> from a message to hide it.
 prefix: "<gray>[<gold>Lodestock<gray>] "
 
-help: "<gold>Lodestock help<newline><yellow>/lodestock<gray> - open the market<newline><yellow>/lodestock list [page]<gray> - show market prices<newline><yellow>/lodestock price <item><gray> - price and stock of one item<newline><yellow>/lodestock buy <item> [amount]<newline><yellow>/lodestock sell <item> [amount|all]<newline><yellow>/lodestock reload<gray> - reload the config"
+help: "<gold>Lodestock help<newline><yellow>/lodestock<gray> - open the market<newline><yellow>/lodestock price <item><gray> - price and stock of one item<newline><yellow>/lodestock reload<gray> - reload the config"
 no-permission: "<prefix><red>You don't have permission to do that."
 unknown-subcommand: "<prefix><red>Unknown command. Try <yellow>/lodestock help<red>."
 player-only: "<prefix><red>Only players can do that."
+
 reloaded: "<prefix><green>Reloaded. <items> items loaded."
 reload-failed: "<prefix><red>Reload failed, the old settings are still in use. Check the console."
+reload-warnings: "<prefix><yellow><count> problem(s) found in the config:"
+warning-line: "<gray>- <yellow><warning>"
+warning-more: "<gray>...and <more> more. See the console."
 
-list-header: "<gold>Market prices <gray>(page <page>/<pages>)"
-list-line: "<gray>- <white><item> <green><price> <dark_gray>(stock <stock>/<max>)"
-list-empty: "<prefix><red>The market has no items."
 price-line: "<gold><item><newline><gray>Buy: <green><buy> <dark_gray>| <gray>Sell: <green><sell><newline><gray>Stock: <white><stock>/<max>"
-
-usage-buy: "<prefix><red>Usage: <yellow>/lodestock buy <item> [amount]"
-usage-sell: "<prefix><red>Usage: <yellow>/lodestock sell <item> [amount|all]"
 usage-price: "<prefix><red>Usage: <yellow>/lodestock price <item>"
-invalid-amount: "<prefix><red>The amount must be a number from 1 to <max>."
 unknown-item: "<prefix><red>The market doesn't trade <item>."
 
 buy-success: "<prefix><green>Bought <amount>x <item> for <yellow><money><green>."
@@ -34,14 +31,7 @@ economy-missing: "<prefix><red>No economy plugin is active. Ask an admin to inst
 transaction-failed: "<prefix><red>The transaction failed. Nothing was changed."
 
 gui:
-  title-main: "<dark_gray>Lodestock Market"
-  title-category: "<dark_gray>Market: <category>"
-  other-category: "<gray>Other"
   unavailable: "<red>unavailable"
-  category-lore:
-    - "<gray><count> items"
-    - ""
-    - "<yellow>Click to open"
   item-lore:
     - "<gray>Buy price: <green><buy>"
     - "<gray>Sell price: <green><sell>"
@@ -51,8 +41,3 @@ gui:
     - "<yellow>Shift + left-click: <white>buy <bulk>"
     - "<yellow>Right-click: <white>sell 1"
     - "<yellow>Shift + right-click: <white>sell all"
-  back: "<yellow>Back"
-  close: "<red>Close"
-  prev-page: "<yellow>Previous page"
-  next-page: "<yellow>Next page"
-  page: "<gray>Page <white><page>/<pages>"

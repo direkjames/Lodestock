@@ -37,8 +37,6 @@ public final class MenuListener implements Listener {
         if (button == null) return;
 
         switch (button.kind()) {
-            case CATEGORY -> later(() -> plugin.menus().openCategory(player, button.target()));
-            case BACK -> later(() -> plugin.menus().openMain(player));
             case CLOSE -> later(player::closeInventory);
             case PREV -> {
                 menu.setPage(menu.page() - 1);
@@ -68,7 +66,7 @@ public final class MenuListener implements Listener {
                 plugin.trades().buy(player, itemId, click == ClickType.LEFT ? 1 : bulk);
             }
             case RIGHT, SHIFT_RIGHT -> {
-                if (!player.hasPermission("lodestock.sell")) {
+                if (!player.hasPermission("lodestock.sell.gui")) {
                     plugin.messages().send(player, "no-permission");
                     return;
                 }

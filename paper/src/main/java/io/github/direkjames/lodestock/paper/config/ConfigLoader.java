@@ -10,22 +10,24 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.logging.Logger;
+import java.util.Set;
 
 /** Reads config.yml and items.yml. Bad item entries are skipped with a warning. */
 public final class ConfigLoader {
     private ConfigLoader() {}
 
-    public record Category(String id, String icon, String name) {}
+    /** An item pinned to an exact GUI slot. {@code page} starts at 1. */
+    public record Pin(int slot, int page) {}
 
-    public record Loaded(MarketSettings settings, List<MarketItem> items, Map<String, Category> categories) {}
+    public record Loaded(MarketSettings settings, List<MarketItem> items, Map<String, Pin> pins) {}
 
     /** @throws IllegalArgumentException if the general settings are invalid */
-    public static Loaded load(JavaPlugin plugin) {
-        Logger log = plugin.getLogger();
+    public static Loaded load(JavaPlugin plugin, ConfigWarnings warn) {
         plugin.reloadConfig();
         FileConfiguration cfg = plugin.getConfig();
 
@@ -34,53 +36,56 @@ public final class ConfigLoader {
                 cfg.getDouble("multiplier", 0.01),
                 cfg.getDouble("price-floor", 0.01));
         if (settings.hasBuySellLoop()) {
-            log.warning("Your tax-percent is too low for your multiplier: players can make free money by buying and selling in a loop. Raise tax-percent.");
+            warn.add("tax-percent is too low for your multiplier: players can make free money by buying and selling in a loop. Raise tax-percent.");
         }
 
         YamlConfiguration itemsCfg = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "items.yml"));
-
-        Map<String, Category> categories = new LinkedHashMap<>();
-        ConfigurationSection catSec = itemsCfg.getConfigurationSection("categories");
-        if (catSec != null) {
-            for (String id : catSec.getKeys(false)) {
-                ConfigurationSection c = catSec.getConfigurationSection(id);
-                if (c == null) continue;
-                categories.put(id, new Category(id, c.getString("icon", "minecraft:chest"), c.getString("name", id)));
-            }
-        }
-
         List<MarketItem> items = new ArrayList<>();
-        ConfigurationSection itemSec = itemsCfg.getConfigurationSection("items");
-        if (itemSec != null) {
-            for (String id : itemSec.getKeys(false)) {
-                ConfigurationSection s = itemSec.getConfigurationSection(id);
-                if (s == null) {
-                    log.warning("items.yml: '" + id + "' is not a valid entry, skipped.");
-                    continue;
-                }
-                Material material = Material.matchMaterial(id);
-                if (material == null || !material.isItem()) {
-                    log.warning("items.yml: '" + id + "' is not a known item, skipped.");
-                    continue;
-                }
-                String category = s.getString("category", "other");
-                if (!categories.containsKey(category)) {
-                    log.warning("items.yml: '" + id + "' uses unknown category '" + category + "'.");
-                }
-                try {
-                    items.add(new MarketItem(
-                            id, category,
-                            s.getDouble("base-price"),
-                            s.getInt("start-stock"),
-                            s.getInt("max-stock"),
-                            s.getBoolean("allow-buy", true),
-                            s.getBoolean("allow-sell", true)));
-                } catch (IllegalArgumentException e) {
-                    log.warning("items.yml: " + e.getMessage() + " - skipped.");
+        Map<String, Pin> pins = new LinkedHashMap<>();
+        Set<String> seen = new HashSet<>();
+
+        for (String key : itemsCfg.getKeys(false)) {
+            ConfigurationSection section = itemsCfg.getConfigurationSection(key);
+            if (section == null) {
+                warn.add("items.yml: '" + key + "' needs settings under it (base-price, start-stock, max-stock), skipped.");
+                continue;
+            }
+
+            String cleaned = key.trim().toLowerCase(Locale.ROOT);
+            if (cleaned.startsWith("minecraft:")) cleaned = cleaned.substring("minecraft:".length());
+            Material material = cleaned.contains(":") ? null : Material.matchMaterial(cleaned);
+            if (material == null || material.isLegacy() || !material.isItem() || material.isAir()) {
+                warn.add("items.yml: '" + key + "' is not a Minecraft item ID, skipped. Use IDs such as diamond or iron_ingot.");
+                continue;
+            }
+            String id = material.getKey().getKey(); // the official ID, so variants of a name count as duplicates
+            if (!seen.add(id)) {
+                warn.add("items.yml: '" + key + "' is listed twice, the second entry was skipped.");
+                continue;
+            }
+
+            try {
+                items.add(new MarketItem(id,
+                        section.getDouble("base-price"),
+                        section.getInt("start-stock"),
+                        section.getInt("max-stock"),
+                        section.getBoolean("allow-buy", true),
+                        section.getBoolean("allow-sell", true)));
+            } catch (IllegalArgumentException e) {
+                warn.add("items.yml: " + e.getMessage() + " - skipped.");
+                continue;
+            }
+
+            if (section.contains("slot")) {
+                int slot = section.getInt("slot");
+                int page = section.getInt("page", 1);
+                if (slot < 0 || page < 1) {
+                    warn.add("items.yml: " + id + " has an invalid slot or page, it will be placed automatically.");
+                } else {
+                    pins.put(id, new Pin(slot, page));
                 }
             }
         }
-        log.info("Loaded " + items.size() + " market items.");
-        return new Loaded(settings, items, categories);
+        return new Loaded(settings, items, pins);
     }
 }

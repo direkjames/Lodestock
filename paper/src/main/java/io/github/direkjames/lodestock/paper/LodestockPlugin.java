@@ -3,35 +3,41 @@ package io.github.direkjames.lodestock.paper;
 import io.github.direkjames.lodestock.core.market.Market;
 import io.github.direkjames.lodestock.paper.command.LodestockCommand;
 import io.github.direkjames.lodestock.paper.config.ConfigLoader;
+import io.github.direkjames.lodestock.paper.config.ConfigWarnings;
 import io.github.direkjames.lodestock.paper.config.Messages;
 import io.github.direkjames.lodestock.paper.economy.EconomyHook;
+import io.github.direkjames.lodestock.paper.gui.GuiLayout;
+import io.github.direkjames.lodestock.paper.gui.GuiLayoutLoader;
+import io.github.direkjames.lodestock.paper.gui.MenuListener;
+import io.github.direkjames.lodestock.paper.gui.MenuService;
 import io.github.direkjames.lodestock.paper.storage.YamlMarketStorage;
 import io.github.direkjames.lodestock.paper.trade.TradeService;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
-import io.github.direkjames.lodestock.paper.gui.MenuListener;
-import io.github.direkjames.lodestock.paper.gui.MenuService;
 
 import java.io.File;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public final class LodestockPlugin extends JavaPlugin {
     private static final int BSTATS_ID = 34522;
 
-    private MenuService menus;
     private YamlMarketStorage storage;
     private Messages messages;
     private Market market;
     private EconomyHook economy;
     private TradeService trades;
-    private Map<String, ConfigLoader.Category> categories = Map.of();
+    private MenuService menus;
+    private GuiLayout layout;
+    private List<String> warnings = List.of();
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
         saveIfMissing("items.yml");
+        saveIfMissing("gui.yml");
         saveIfMissing("lang/en.yml");
 
         messages = new Messages(this);
@@ -73,14 +79,21 @@ public final class LodestockPlugin extends JavaPlugin {
         getLogger().info("Lodestock disabled.");
     }
 
-    /** Loads (or reloads) config, language and market. Keeps the old market if the new config is invalid. */
+    /** Loads (or reloads) config, language, items and the GUI. Keeps the old setup if the new config is invalid. */
     public boolean loadMarket() {
         try {
-            ConfigLoader.Loaded loaded = ConfigLoader.load(this);
+            List<String> found = new ArrayList<>();
+            ConfigWarnings warn = new ConfigWarnings(getLogger(), found);
+            ConfigLoader.Loaded loaded = ConfigLoader.load(this, warn);
+            GuiLayout newLayout = GuiLayoutLoader.load(this, loaded.items(), loaded.pins(), warn);
             messages.reload();
+
             if (market != null) market.flush();
             market = new Market(loaded.settings(), loaded.items(), storage);
-            categories = loaded.categories();
+            layout = newLayout;
+            warnings = List.copyOf(found);
+            getLogger().info("Loaded " + loaded.items().size() + " market items.");
+
             if (menus != null) menus.closeAll();
             return true;
         } catch (IllegalArgumentException e) {
@@ -98,5 +111,7 @@ public final class LodestockPlugin extends JavaPlugin {
     public EconomyHook economy() { return economy; }
     public TradeService trades() { return trades; }
     public MenuService menus() { return menus; }
-    public Map<String, ConfigLoader.Category> categories() { return categories; }
+    public GuiLayout layout() { return layout; }
+    /** Problems found during the last (re)load. */
+    public List<String> warnings() { return warnings; }
 }

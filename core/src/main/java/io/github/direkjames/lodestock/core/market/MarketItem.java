@@ -1,8 +1,7 @@
 package io.github.direkjames.lodestock.core.market;
 
 /** One thing the market trades. Settings only; live price and stock are in ItemState. */
-public record MarketItem(String id, String category, double basePrice,
-                         int startStock, int maxStock,
+public record MarketItem(String id, double basePrice, int startStock, int maxStock,
                          boolean allowBuy, boolean allowSell) {
     public MarketItem {
         if (id == null || id.isBlank()) throw new IllegalArgumentException("item id is empty");

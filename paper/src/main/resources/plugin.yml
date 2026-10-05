@@ -10,15 +10,57 @@ softdepend: [ Essentials ]
 commands:
   lodestock:
     description: Lodestock market commands
-    usage: /<command> [help|open|list|price|buy|sell|reload]
+    usage: /<command> [help|open|price|reload]
     aliases: [market, openmarket]
 
 permissions:
   lodestock.use:
+    description: Open the market and check prices
     default: true
   lodestock.buy:
+    description: Buy in the GUI
     default: true
-  lodestock.sell:
+  lodestock.sell.gui:
+    description: Sell in the GUI
     default: true
-  lodestock.admin:
+  lodestock.sell.hand:
+    description: Use /lodestock sellhand
+    default: true
+  lodestock.sell.all:
+    description: Use /lodestock sellall
+    default: true
+  lodestock.sell.*:
+    description: All selling permissions
+    default: false
+    children:
+      lodestock.sell.gui: true
+      lodestock.sell.hand: true
+      lodestock.sell.all: true
+  lodestock.admin.reload:
     default: op
+  lodestock.admin.setprice:
+    default: op
+  lodestock.admin.setstock:
+    default: op
+  lodestock.admin.reset:
+    default: op
+  lodestock.admin.crash:
+    default: op
+  lodestock.admin.surge:
+    default: op
+  lodestock.admin.stats:
+    default: op
+  lodestock.admin.history:
+    default: op
+  lodestock.admin.*:
+    description: All admin permissions
+    default: op
+    children:
+      lodestock.admin.reload: true
+      lodestock.admin.setprice: true
+      lodestock.admin.setstock: true
+      lodestock.admin.reset: true
+      lodestock.admin.crash: true
+      lodestock.admin.surge: true
+      lodestock.admin.stats: true
+      lodestock.admin.history: true

@@ -1,0 +1,37 @@
+# The market window. Slots count from 0 (top-left). A 4-row window has slots 0-35.
+# Text uses MiniMessage, such as <red>, <gold> and <bold>.
+
+# Window title.
+title: "<dark_gray>Lodestock Market"
+
+# Number of rows, 1 to 6.
+rows: 4
+
+# Slots where market items are placed, in order, flowing onto more pages when full.
+# Use single slots and ranges. Items pinned with "slot:" in items.yml take priority.
+item-slots: ["10-16", "19-25"]
+
+# Decoration for every slot that is otherwise empty.
+fill:
+  enabled: true
+  material: gray_stained_glass_pane
+  name: " "
+
+# Page buttons. They only appear when there is a page to go to.
+# In the names, <page> is the current page and <pages> is the total.
+previous-page:
+  enabled: true
+  slot: 27
+  material: arrow
+  name: "<yellow>Previous page <gray>(<page>/<pages>)"
+next-page:
+  enabled: true
+  slot: 35
+  material: arrow
+  name: "<yellow>Next page <gray>(<page>/<pages>)"
+
+close:
+  enabled: true
+  slot: 31
+  material: barrier
+  name: "<red>Close"

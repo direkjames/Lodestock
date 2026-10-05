@@ -6,7 +6,6 @@ import io.github.direkjames.lodestock.core.market.MarketItem;
 import io.github.direkjames.lodestock.core.market.Quote;
 import io.github.direkjames.lodestock.paper.LodestockPlugin;
 import io.github.direkjames.lodestock.paper.config.Messages;
-import io.github.direkjames.lodestock.paper.trade.TradeService;
 import io.github.direkjames.lodestock.paper.util.ItemNames;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.command.Command;
@@ -20,7 +19,7 @@ import java.util.List;
 import java.util.Locale;
 
 public final class LodestockCommand implements TabExecutor {
-    private static final int PAGE_SIZE = 8;
+    private static final int MAX_WARNINGS_SHOWN = 10;
 
     private final LodestockPlugin plugin;
 
@@ -36,50 +35,11 @@ public final class LodestockCommand implements TabExecutor {
         switch (sub) {
             case "help" -> msg.send(sender, "help");
             case "open", "gui" -> open(sender);
-            case "list" -> list(sender, args);
             case "price" -> price(sender, args);
-            case "buy" -> buy(sender, args);
-            case "sell" -> sell(sender, args);
-            case "reload" -> {
-                if (!sender.hasPermission("lodestock.admin")) {
-                    msg.send(sender, "no-permission");
-                    return true;
-                }
-                if (plugin.loadMarket()) {
-                    msg.send(sender, "reloaded", Placeholder.parsed("items", String.valueOf(plugin.market().items().size())));
-                } else {
-                    msg.send(sender, "reload-failed");
-                }
-            }
+            case "reload" -> reload(sender);
             default -> msg.send(sender, "unknown-subcommand");
         }
         return true;
-    }
-
-    private void buy(CommandSender sender, String[] args) {
-        Messages msg = plugin.messages();
-        if (!(sender instanceof Player player)) {
-            msg.send(sender, "player-only");
-            return;
-        }
-        if (!player.hasPermission("lodestock.buy")) {
-            msg.send(sender, "no-permission");
-            return;
-        }
-        if (args.length < 2) {
-            msg.send(sender, "usage-buy");
-            return;
-        }
-        int amount = 1;
-        if (args.length > 2) {
-            Integer parsed = parseAmount(args[2]);
-            if (parsed == null) {
-                msg.send(sender, "invalid-amount", Placeholder.parsed("max", String.valueOf(TradeService.MAX_AMOUNT)));
-                return;
-            }
-            amount = parsed;
-        }
-        plugin.trades().buy(player, normalizeId(args[1]), amount);
     }
 
     private void open(CommandSender sender) {
@@ -92,37 +52,30 @@ public final class LodestockCommand implements TabExecutor {
             msg.send(sender, "no-permission");
             return;
         }
-        plugin.menus().openMain(player);
+        plugin.menus().open(player);
     }
 
-    private void sell(CommandSender sender, String[] args) {
+    private void reload(CommandSender sender) {
         Messages msg = plugin.messages();
-        if (!(sender instanceof Player player)) {
-            msg.send(sender, "player-only");
-            return;
-        }
-        if (!player.hasPermission("lodestock.sell")) {
+        if (!sender.hasPermission("lodestock.admin.reload")) {
             msg.send(sender, "no-permission");
             return;
         }
-        if (args.length < 2) {
-            msg.send(sender, "usage-sell");
+        if (!plugin.loadMarket()) {
+            msg.send(sender, "reload-failed");
             return;
         }
-        int amount = 1;
-        if (args.length > 2) {
-            if (args[2].equalsIgnoreCase("all")) {
-                amount = -1;
-            } else {
-                Integer parsed = parseAmount(args[2]);
-                if (parsed == null) {
-                    msg.send(sender, "invalid-amount", Placeholder.parsed("max", String.valueOf(TradeService.MAX_AMOUNT)));
-                    return;
-                }
-                amount = parsed;
-            }
+        msg.send(sender, "reloaded", Placeholder.unparsed("items", String.valueOf(plugin.market().items().size())));
+
+        List<String> warnings = plugin.warnings();
+        if (warnings.isEmpty()) return;
+        msg.send(sender, "reload-warnings", Placeholder.unparsed("count", String.valueOf(warnings.size())));
+        for (int i = 0; i < Math.min(MAX_WARNINGS_SHOWN, warnings.size()); i++) {
+            msg.send(sender, "warning-line", Placeholder.unparsed("warning", warnings.get(i)));
         }
-        plugin.trades().sell(player, normalizeId(args[1]), amount);
+        if (warnings.size() > MAX_WARNINGS_SHOWN) {
+            msg.send(sender, "warning-more", Placeholder.unparsed("more", String.valueOf(warnings.size() - MAX_WARNINGS_SHOWN)));
+        }
     }
 
     private void price(CommandSender sender, String[] args) {
@@ -153,55 +106,10 @@ public final class LodestockCommand implements TabExecutor {
                 Placeholder.unparsed("max", String.valueOf(item.maxStock())));
     }
 
-    private void list(CommandSender sender, String[] args) {
-        Messages msg = plugin.messages();
-        if (!sender.hasPermission("lodestock.use")) {
-            msg.send(sender, "no-permission");
-            return;
-        }
-        Market market = plugin.market();
-        List<MarketItem> items = new ArrayList<>(market.items());
-        if (items.isEmpty()) {
-            msg.send(sender, "list-empty");
-            return;
-        }
-        int pages = (items.size() + PAGE_SIZE - 1) / PAGE_SIZE;
-        int page = 1;
-        if (args.length > 1) {
-            try {
-                page = Integer.parseInt(args[1]);
-            } catch (NumberFormatException ignored) {
-            }
-        }
-        page = Math.max(1, Math.min(page, pages));
-
-        msg.send(sender, "list-header",
-                Placeholder.parsed("page", String.valueOf(page)),
-                Placeholder.parsed("pages", String.valueOf(pages)));
-        int from = (page - 1) * PAGE_SIZE;
-        for (MarketItem item : items.subList(from, Math.min(items.size(), from + PAGE_SIZE))) {
-            ItemState s = market.state(item.id()).orElseThrow();
-            msg.send(sender, "list-line",
-                    Placeholder.unparsed("item", ItemNames.pretty(item.id())),
-                    Placeholder.unparsed("price", plugin.economy().format(s.price())),
-                    Placeholder.unparsed("stock", String.valueOf(s.stock())),
-                    Placeholder.unparsed("max", String.valueOf(item.maxStock())));
-        }
-    }
-
-    /** "diamond" becomes "minecraft:diamond". IDs with a namespace are left alone. */
-    private static String normalizeId(String input) {
-        String id = input.toLowerCase(Locale.ROOT);
-        return id.contains(":") ? id : "minecraft:" + id;
-    }
-
-    private static Integer parseAmount(String input) {
-        try {
-            int amount = Integer.parseInt(input);
-            return amount >= 1 && amount <= TradeService.MAX_AMOUNT ? amount : null;
-        } catch (NumberFormatException e) {
-            return null;
-        }
+    /** "Minecraft:Diamond" and "diamond" both become "diamond". */
+    static String normalizeId(String input) {
+        String id = input.trim().toLowerCase(Locale.ROOT);
+        return id.startsWith("minecraft:") ? id.substring("minecraft:".length()) : id;
     }
 
     @Override
@@ -209,21 +117,18 @@ public final class LodestockCommand implements TabExecutor {
                                       @NotNull String alias, @NotNull String[] args) {
         String typed = args[args.length - 1].toLowerCase(Locale.ROOT);
         if (args.length == 1) {
-            List<String> options = new ArrayList<>(List.of("help", "open", "list", "price", "buy", "sell"));
-            if (sender.hasPermission("lodestock.admin")) options.add("reload");
+            List<String> options = new ArrayList<>(List.of("help"));
+            if (sender.hasPermission("lodestock.use")) options.addAll(List.of("open", "price"));
+            if (sender.hasPermission("lodestock.admin.reload")) options.add("reload");
             return options.stream().filter(o -> o.startsWith(typed)).toList();
         }
-        String sub = args[0].toLowerCase(Locale.ROOT);
-        boolean tradeCommand = sub.equals("buy") || sub.equals("sell") || sub.equals("price");
-        if (args.length == 2 && tradeCommand) {
+        if (args.length == 2 && args[0].equalsIgnoreCase("price")) {
             return plugin.market().items().stream()
-                    .map(i -> i.id().startsWith("minecraft:") ? i.id().substring("minecraft:".length()) : i.id())
-                    .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(typed))
+                    .map(MarketItem::id)
+                    .filter(id -> id.startsWith(typed))
                     .limit(30)
                     .toList();
         }
-        if (args.length == 3 && sub.equals("buy")) return List.of("1", "16", "64");
-        if (args.length == 3 && sub.equals("sell")) return List.of("1", "16", "64", "all");
         return List.of();
     }
 }
