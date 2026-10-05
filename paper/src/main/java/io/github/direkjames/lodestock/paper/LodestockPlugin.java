@@ -4,7 +4,9 @@ import io.github.direkjames.lodestock.core.market.Market;
 import io.github.direkjames.lodestock.paper.command.LodestockCommand;
 import io.github.direkjames.lodestock.paper.config.ConfigLoader;
 import io.github.direkjames.lodestock.paper.config.Messages;
+import io.github.direkjames.lodestock.paper.economy.EconomyHook;
 import io.github.direkjames.lodestock.paper.storage.YamlMarketStorage;
+import io.github.direkjames.lodestock.paper.trade.TradeService;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -19,6 +21,8 @@ public final class LodestockPlugin extends JavaPlugin {
     private YamlMarketStorage storage;
     private Messages messages;
     private Market market;
+    private EconomyHook economy;
+    private TradeService trades;
     private Map<String, ConfigLoader.Category> categories = Map.of();
 
     @Override
@@ -28,6 +32,8 @@ public final class LodestockPlugin extends JavaPlugin {
         saveIfMissing("lang/en.yml");
 
         messages = new Messages(this);
+        economy = new EconomyHook(this);
+        trades = new TradeService(this);
         storage = new YamlMarketStorage(new File(getDataFolder(), "data.yml"), getLogger());
 
         if (!loadMarket()) {
@@ -43,6 +49,13 @@ public final class LodestockPlugin extends JavaPlugin {
 
         // Temporary: write changes to disk every 30 seconds (replaced by the database in Phase 2).
         getServer().getScheduler().runTaskTimer(this, storage::writeIfDirty, 600L, 600L);
+
+        // Economy plugins can register late, so check once the whole server has finished loading.
+        getServer().getScheduler().runTask(this, () -> {
+            if (!economy.available()) {
+                getLogger().warning("No Vault economy found. Install an economy plugin (such as EssentialsX) or trading won't work.");
+            }
+        });
 
         new Metrics(this, BSTATS_ID);
         getLogger().info("Lodestock enabled.");
@@ -76,5 +89,7 @@ public final class LodestockPlugin extends JavaPlugin {
 
     public Market market() { return market; }
     public Messages messages() { return messages; }
+    public EconomyHook economy() { return economy; }
+    public TradeService trades() { return trades; }
     public Map<String, ConfigLoader.Category> categories() { return categories; }
 }

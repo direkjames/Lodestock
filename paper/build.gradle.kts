@@ -9,12 +9,13 @@ tasks.withType<JavaCompile>().configureEach {
 
 repositories {
     maven("https://repo.purpurmc.org/snapshots")
+    maven("https://jitpack.io")
 }
 
 dependencies {
     implementation(project(":core"))
     compileOnly("org.purpurmc.purpur:purpur-api:26.1.2.build.2583-stable")
-
+    compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
     // Add after you get your bStats plugin ID (use the version bStats shows you):
     implementation("org.bstats:bstats-bukkit:3.2.1")
 }

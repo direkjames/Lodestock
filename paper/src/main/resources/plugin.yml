@@ -4,14 +4,20 @@ main: io.github.direkjames.lodestock.paper.LodestockPlugin
 api-version: '26.1'
 authors: [ direkjames ]
 description: A stock market for ores. A rework of OreMarket by OllieJW.
+depend: [ Vault ]
+softdepend: [ Essentials ]
 
 commands:
   lodestock:
     description: Lodestock market commands
-    usage: /<command> [help|list|reload]
+    usage: /<command> [help|list|price|buy|sell|reload]
 
 permissions:
   lodestock.use:
+    default: true
+  lodestock.buy:
+    default: true
+  lodestock.sell:
     default: true
   lodestock.admin:
     default: op

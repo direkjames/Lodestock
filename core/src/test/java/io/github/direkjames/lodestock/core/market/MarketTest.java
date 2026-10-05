@@ -59,4 +59,30 @@ class MarketTest {
         assertTrue(new MarketSettings(0.0, 0.01, 0.01).hasBuySellLoop());
         assertFalse(new MarketSettings(10.0, 0.01, 0.01).hasBuySellLoop());
     }
+
+    @Test
+    void bulkBuyIsLimitedByStockAndPricesEachItem() {
+        Market m = market(new InMemoryMarketStorage());
+        BulkQuote q = m.previewBuy("minecraft:diamond", 5);
+        assertEquals(2, q.count());
+        assertEquals(200.9, q.total(), 1e-9);
+        assertEquals(2, m.state("minecraft:diamond").orElseThrow().stock()); // preview changes nothing
+    }
+
+    @Test
+    void bulkSellIsLimitedByMaxStock() {
+        Market m = market(new InMemoryMarketStorage());
+        BulkQuote q = m.previewSell("minecraft:diamond", 5);
+        assertEquals(1, q.count());
+        assertEquals(90.0, q.total(), 1e-9);
+    }
+
+    @Test
+    void recordBuyManyMovesPriceAndStock() {
+        Market m = market(new InMemoryMarketStorage());
+        m.recordBuy("minecraft:diamond", 2);
+        ItemState s = m.state("minecraft:diamond").orElseThrow();
+        assertEquals(0, s.stock());
+        assertEquals(101.8081, s.price(), 1e-6);
+    }
 }
