@@ -1,0 +1,18 @@
+# Gradle
+.gradle/
+build/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Test server and run files
+run/
+logs/
+
+# Operating system
+.DS_Store
+Thumbs.db
