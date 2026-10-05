@@ -1,34 +1,37 @@
 # Lodestock
-A stock market for ores in Minecraft. Prices move with every trade, so what players buy and sell actually matters. Built for Paper and Purpur servers (OneBlock and Skyblock servers especially).
 
-> **Status:** early development (0.1.0-alpha.1). Lodestock is not publicly released yet. Expect small bugs and config changes between alpha versions.
+A stock market for ores in Minecraft. Prices move with every trade, so what players buy and sell actually matters. Built for Paper and Purpur servers (OneBlock servers especially).
 
-Lodestock is a rework of **[OreMarket](https://github.com/OllieJW/Ore-Market) by OllieJW**, rebuilt for modern Minecraft. Thank you, OllieJW, for the idea and the original plugin.
+> **Status: early development (0.1.0-alpha.1).** Lodestock is not publicly released yet. Expect small bugs and config changes between alpha versions.
 
-### Features
+Lodestock is a rework of **[OreMarket](https://github.com/OllieJW/Ore-Market) by OllieJW**, rebuilt for modern Minecraft with the original author's permission. Thank you, OllieJW, for the idea and the original plugin.
+
+## Features
 
 - A market window where players left-click to buy and right-click to sell, with live prices and stock.
 - Prices rise when items are bought and fall when they are sold. Tax is taken on sales.
 - Each item has a limited stock: the market can run out, and stops buying from players when it is full.
 - `/lodestock sellhand` and `/lodestock sellall` for fast selling, with a confirmation step and a cooldown on `sellall`.
 - A fully configurable window: title, rows, item slots, fill item, page buttons, and items pinned to exact slots.
-- **Admin tools:** set prices and stock, reset, market crash and surge, stats, and a per-player trade history.
+- Admin tools: set prices and stock, reset, market crash and surge, stats, and a per-player trade history.
+- Crash-safe storage: prices, stock and history are saved to a SQLite database as they change, so a server crash loses almost nothing.
 - MiniMessage language file with a configurable message prefix.
-- One jar for Paper and Purpur **1.21.11**, **26.1**, **26.2** and **26.3**.
+- One jar for Paper and Purpur 1.21.11, 26.1, 26.2 and 26.3.
 
-### Requirements
+## Requirements
 
-- **Paper** or **Purpur** 1.21.11, 26.1, 26.2 or 26.3. Other Paper forks may work, but they are untested.
+- **Paper or Purpur** 1.21.11, 26.1, 26.2 or 26.3. Other Paper forks may work, but they are untested.
 - **Java**: whatever your Minecraft version needs (Java 21 for 1.21.11, Java 25 for 26.x).
-- **Vault** and an economy plugin that works with it, such as EssentialsX. Lodestock does not have its own money.
+- **[Vault](https://www.spigotmc.org/resources/vault.34315/)** and an economy plugin that works with it, such as EssentialsX. Lodestock does not have its own money.
 
-### Installation
+## Installation
 
 1. Put `Lodestock-Paper-<version>.jar` in your server's `plugins` folder, along with Vault and your economy plugin.
 2. Start the server. Lodestock creates `plugins/Lodestock/` with its config files.
-3. Edit the files to taste (see Configuration), then run `/lodestock reload`.
+3. Edit the files to taste (see [Configuration](#configuration)), then run `/lodestock reload`.
 
-### Using the market
+## Using the market
+
 Open it with `/market`, `/openmarket` or `/lodestock`.
 
 | Click | What it does |
@@ -71,7 +74,7 @@ All of these also work from the console.
 | `/lodestock history <player> [page]` | A player's trades, newest first | `lodestock.admin.history` |
 | `/lodestock reload` | Reload all config files and show any problems found | `lodestock.admin.reload` |
 
-`crash` and `surge` announce themselves to the whole server unless you set `admin.broadcast: false`. Admin actions are written to `history/admin.log`.
+`crash` and `surge` announce themselves to the whole server unless you set `admin.broadcast: false`. Admin actions are recorded in the database.
 
 ## Permissions
 
@@ -98,8 +101,7 @@ Everything lives in `plugins/Lodestock/`:
 | `items.yml` | What the market sells and for how much |
 | `gui.yml` | The look and layout of the market window |
 | `lang/en.yml` | Every message and the item description text |
-| `data.yml` | Live prices and stock. Managed by the plugin, don't edit it while the server runs |
-| `history/` | Trade logs. Managed by the plugin |
+| `lodestock.db` | Live prices, stock, trade history and the admin log (a SQLite database). Managed by the plugin |
 
 ### config.yml
 
@@ -173,23 +175,26 @@ The page buttons only appear when there is a page to go to. Bad slots and overla
 
 ## Data and history
 
-- Prices and stock are saved to `data.yml` every 30 seconds and when the server stops. If the server **crashes**, up to 30 seconds of price changes can be lost. A real database is planned (see below).
-- Every trade is written to `history/<player uuid>.log`, and admin actions to `history/admin.log`.
+- Everything is stored in one SQLite file, `plugins/Lodestock/lodestock.db`: live prices and stock, every trade, and every admin action.
+- Each change is written to the database as it happens, in the background, so it never slows the server down. If the server **crashes**, at most the last few milliseconds of changes can be lost.
+- While the server runs you will also see `lodestock.db-wal` and `lodestock.db-shm`. That is normal.
+- **Backups:** copy `lodestock.db` while the server is **stopped**, and copy the `-wal` and `-shm` files with it if they exist.
+- **Reset the whole market:** stop the server and delete the `lodestock.db` files, or use `/lodestock reset all confirm`.
+- Trade history older than `history.keep-days` is deleted at startup.
 - `/lodestock history` finds players who are online or that the server has seen before.
 
 ## Known limits (alpha)
 
-- Single server only. Storage is a file, not a database yet.
+- Single server only. There is no proxy or network support, and no MySQL or MariaDB.
 - No PlaceholderAPI placeholders. They'll be added if people ask for them.
 - Trade results are sent as chat messages, so they can be hard to read while the window is open.
 - Vanilla items only.
 
 ## Roadmap
 
-1. **Now:** the Paper and Purpur plugin (this version).
-2. **Next:** a database (SQLite, MySQL and MariaDB) so a crash loses almost nothing and several servers can share one market, with optional Redis sync.
-3. **Then:** performance work and extra features such as price history and daily limits.
-4. **Later:** Fabric and NeoForge versions.
+1. **Done:** the Paper and Purpur plugin, with crash-safe SQLite storage (this version).
+2. **Next:** performance checks and extra features such as price history and daily limits.
+3. **Later:** Fabric and NeoForge versions.
 
 ## Building from source
 
