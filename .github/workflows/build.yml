@@ -24,10 +24,17 @@ jobs:
       - name: Build and test
         run: ./gradlew build
 
+      - name: Find the plugin jar
+        run: |
+          JAR=$(find paper/build/libs -name 'Lodestock-Paper*.jar' ! -name '*plain*' | head -n 1)
+          test -n "$JAR" || { echo "Plugin jar not found"; exit 1; }
+          mkdir -p dist && cp "$JAR" dist/
+          echo "JAR=$JAR" >> "$GITHUB_ENV"
+
       - name: Check our classes are Java 21
         run: |
           mkdir -p /tmp/check && cd /tmp/check
-          unzip -q "$GITHUB_WORKSPACE/paper/build/libs/Lodestock-Paper.jar" \
+          unzip -q "$GITHUB_WORKSPACE/$JAR" \
             'io/github/direkjames/lodestock/paper/*' 'io/github/direkjames/lodestock/core/*'
           for f in $(find . -name '*.class'); do
             major=$(javap -v "$f" | grep 'major version' | awk '{print $3}')
@@ -42,4 +49,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Lodestock-Paper
-          path: paper/build/libs/Lodestock-Paper.jar
+          path: dist/*.jar
