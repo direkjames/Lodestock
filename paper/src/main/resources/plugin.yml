@@ -1,0 +1,6 @@
+name: Lodestock
+version: ${version}
+main: io.github.direkjames.lodestock.paper.LodestockPlugin
+api-version: '26.1'
+authors: [ direkjames ]
+description: A stock market for ores. A rework of OreMarket by OllieJW.
