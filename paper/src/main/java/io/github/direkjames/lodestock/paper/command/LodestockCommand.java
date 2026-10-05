@@ -32,9 +32,10 @@ public final class LodestockCommand implements TabExecutor {
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
                              @NotNull String label, @NotNull String[] args) {
         Messages msg = plugin.messages();
-        String sub = args.length == 0 ? "help" : args[0].toLowerCase(Locale.ROOT);
+        String sub = args.length == 0 ? (sender instanceof Player ? "open" : "help") : args[0].toLowerCase(Locale.ROOT);
         switch (sub) {
             case "help" -> msg.send(sender, "help");
+            case "open", "gui" -> open(sender);
             case "list" -> list(sender, args);
             case "price" -> price(sender, args);
             case "buy" -> buy(sender, args);
@@ -79,6 +80,19 @@ public final class LodestockCommand implements TabExecutor {
             amount = parsed;
         }
         plugin.trades().buy(player, normalizeId(args[1]), amount);
+    }
+
+    private void open(CommandSender sender) {
+        Messages msg = plugin.messages();
+        if (!(sender instanceof Player player)) {
+            msg.send(sender, "player-only");
+            return;
+        }
+        if (!player.hasPermission("lodestock.use")) {
+            msg.send(sender, "no-permission");
+            return;
+        }
+        plugin.menus().openMain(player);
     }
 
     private void sell(CommandSender sender, String[] args) {
@@ -195,7 +209,7 @@ public final class LodestockCommand implements TabExecutor {
                                       @NotNull String alias, @NotNull String[] args) {
         String typed = args[args.length - 1].toLowerCase(Locale.ROOT);
         if (args.length == 1) {
-            List<String> options = new ArrayList<>(List.of("help", "list", "price", "buy", "sell"));
+            List<String> options = new ArrayList<>(List.of("help", "open", "list", "price", "buy", "sell"));
             if (sender.hasPermission("lodestock.admin")) options.add("reload");
             return options.stream().filter(o -> o.startsWith(typed)).toList();
         }

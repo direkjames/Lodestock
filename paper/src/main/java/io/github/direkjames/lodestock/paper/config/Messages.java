@@ -2,6 +2,7 @@ package io.github.direkjames.lodestock.paper.config;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -12,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /** Language file loader. Missing keys fall back to the bundled English file. */
 public final class Messages {
@@ -40,12 +42,36 @@ public final class Messages {
         }
     }
 
-    public Component get(String key, TagResolver... resolvers) {
-        String raw = lang.getString(key, fallback.getString(key, "<red>Missing message: " + key));
-        return MM.deserialize(raw, resolvers);
+    /** Parses MiniMessage text such as a category name from items.yml. */
+    public static Component mini(String raw) {
+        return MM.deserialize(raw);
     }
 
-    public void send(CommandSender to, String key, TagResolver... resolvers) {
-        to.sendMessage(get(key, resolvers));
+    private String raw(String key) {
+        return lang.getString(key, fallback.getString(key, "<red>Missing message: " + key));
+    }
+
+    /** Your own placeholders plus &lt;prefix&gt;, which comes from "prefix:" in the language file. */
+    private TagResolver resolvers(TagResolver... extra) {
+        String prefix = lang.getString("prefix", fallback.getString("prefix", ""));
+        return TagResolver.builder()
+                .resolvers(extra)
+                .resolver(Placeholder.parsed("prefix", prefix))
+                .build();
+    }
+
+    public Component get(String key, TagResolver... extra) {
+        return MM.deserialize(raw(key), resolvers(extra));
+    }
+
+    /** For keys that hold a list of lines, such as item lore. */
+    public List<Component> list(String key, TagResolver... extra) {
+        List<String> lines = lang.contains(key) ? lang.getStringList(key) : fallback.getStringList(key);
+        TagResolver all = resolvers(extra);
+        return lines.stream().map(line -> MM.deserialize(line, all)).toList();
+    }
+
+    public void send(CommandSender to, String key, TagResolver... extra) {
+        to.sendMessage(get(key, extra));
     }
 }

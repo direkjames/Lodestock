@@ -10,6 +10,8 @@ import io.github.direkjames.lodestock.paper.trade.TradeService;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
+import io.github.direkjames.lodestock.paper.gui.MenuListener;
+import io.github.direkjames.lodestock.paper.gui.MenuService;
 
 import java.io.File;
 import java.util.Map;
@@ -18,6 +20,7 @@ import java.util.Objects;
 public final class LodestockPlugin extends JavaPlugin {
     private static final int BSTATS_ID = 34522;
 
+    private MenuService menus;
     private YamlMarketStorage storage;
     private Messages messages;
     private Market market;
@@ -34,6 +37,7 @@ public final class LodestockPlugin extends JavaPlugin {
         messages = new Messages(this);
         economy = new EconomyHook(this);
         trades = new TradeService(this);
+        menus = new MenuService(this);
         storage = new YamlMarketStorage(new File(getDataFolder(), "data.yml"), getLogger());
 
         if (!loadMarket()) {
@@ -46,6 +50,7 @@ public final class LodestockPlugin extends JavaPlugin {
         LodestockCommand handler = new LodestockCommand(this);
         command.setExecutor(handler);
         command.setTabCompleter(handler);
+        getServer().getPluginManager().registerEvents(new MenuListener(this), this);
 
         // Temporary: write changes to disk every 30 seconds (replaced by the database in Phase 2).
         getServer().getScheduler().runTaskTimer(this, storage::writeIfDirty, 600L, 600L);
@@ -76,6 +81,7 @@ public final class LodestockPlugin extends JavaPlugin {
             if (market != null) market.flush();
             market = new Market(loaded.settings(), loaded.items(), storage);
             categories = loaded.categories();
+            if (menus != null) menus.closeAll();
             return true;
         } catch (IllegalArgumentException e) {
             getLogger().severe("Invalid config: " + e.getMessage());
@@ -91,5 +97,6 @@ public final class LodestockPlugin extends JavaPlugin {
     public Messages messages() { return messages; }
     public EconomyHook economy() { return economy; }
     public TradeService trades() { return trades; }
+    public MenuService menus() { return menus; }
     public Map<String, ConfigLoader.Category> categories() { return categories; }
 }

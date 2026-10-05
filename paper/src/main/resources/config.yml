@@ -10,3 +10,7 @@ multiplier: 0.01
 
 # Prices never fall below this.
 price-floor: 0.01
+
+gui:
+  # How many items Shift + left-click buys in the menu (2 to 64).
+  bulk-amount: 16
