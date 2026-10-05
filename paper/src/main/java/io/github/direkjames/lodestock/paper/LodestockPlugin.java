@@ -10,9 +10,10 @@ import io.github.direkjames.lodestock.paper.gui.GuiLayout;
 import io.github.direkjames.lodestock.paper.gui.GuiLayoutLoader;
 import io.github.direkjames.lodestock.paper.gui.MenuListener;
 import io.github.direkjames.lodestock.paper.gui.MenuService;
-import io.github.direkjames.lodestock.paper.storage.YamlMarketStorage;
-import io.github.direkjames.lodestock.paper.trade.TradeService;
 import io.github.direkjames.lodestock.paper.log.TradeLog;
+import io.github.direkjames.lodestock.paper.storage.Database;
+import io.github.direkjames.lodestock.paper.storage.SqlMarketStorage;
+import io.github.direkjames.lodestock.paper.trade.TradeService;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -25,7 +26,9 @@ import java.util.Objects;
 public final class LodestockPlugin extends JavaPlugin {
     private static final int BSTATS_ID = 34522;
 
-    private YamlMarketStorage storage;
+    private Database database;
+    private SqlMarketStorage storage;
+    private TradeLog tradeLog;
     private Messages messages;
     private Market market;
     private EconomyHook economy;
@@ -33,7 +36,6 @@ public final class LodestockPlugin extends JavaPlugin {
     private MenuService menus;
     private GuiLayout layout;
     private List<String> warnings = List.of();
-    private TradeLog tradeLog;
 
     @Override
     public void onEnable() {
@@ -41,14 +43,22 @@ public final class LodestockPlugin extends JavaPlugin {
         saveIfMissing("items.yml");
         saveIfMissing("gui.yml");
         saveIfMissing("lang/en.yml");
-        tradeLog = new TradeLog(getDataFolder(), getLogger());
+
+        try {
+            database = new Database(new File(getDataFolder(), "lodestock.db"), getLogger());
+            storage = new SqlMarketStorage(database);
+        } catch (Exception e) {
+            getLogger().severe("Could not open the database (lodestock.db): " + e.getMessage());
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+        tradeLog = new TradeLog(database);
         tradeLog.prune(getConfig().getInt("history.keep-days", 30));
 
         messages = new Messages(this);
         economy = new EconomyHook(this);
         trades = new TradeService(this);
         menus = new MenuService(this);
-        storage = new YamlMarketStorage(new File(getDataFolder(), "data.yml"), getLogger());
 
         if (!loadMarket()) {
             getLogger().severe("Lodestock could not start because the config is invalid. Fix it and restart.");
@@ -61,9 +71,6 @@ public final class LodestockPlugin extends JavaPlugin {
         command.setExecutor(handler);
         command.setTabCompleter(handler);
         getServer().getPluginManager().registerEvents(new MenuListener(this), this);
-
-        // Temporary: write changes to disk every 30 seconds (replaced by the database in Phase 2).
-        getServer().getScheduler().runTaskTimer(this, storage::writeIfDirty, 600L, 600L);
 
         // Economy plugins can register late, so check once the whole server has finished loading.
         getServer().getScheduler().runTask(this, () -> {
@@ -79,8 +86,7 @@ public final class LodestockPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         if (market != null) market.flush();
-        if (storage != null) storage.close();
-        if (tradeLog != null) tradeLog.close();
+        if (database != null) database.close(); // writes everything still queued, then closes the file
         getLogger().info("Lodestock disabled.");
     }
 

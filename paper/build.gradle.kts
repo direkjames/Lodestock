@@ -22,6 +22,12 @@ dependencies {
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
 
     implementation("org.bstats:bstats-bukkit:3.1.0")
+
+    // Tests (the plugin itself uses the server's own SQLite driver)
+    testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testRuntimeOnly("org.xerial:sqlite-jdbc:3.46.0.0")
 }
 
 tasks.processResources {
@@ -42,6 +48,11 @@ tasks.shadowJar {
 
 tasks.build {
     dependsOn(tasks.shadowJar)
+}
+
+// Keep this OUTSIDE the "tasks { }" block below.
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
 }
 
 tasks {
