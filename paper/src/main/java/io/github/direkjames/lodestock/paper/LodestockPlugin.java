@@ -12,6 +12,7 @@ import io.github.direkjames.lodestock.paper.gui.MenuListener;
 import io.github.direkjames.lodestock.paper.gui.MenuService;
 import io.github.direkjames.lodestock.paper.storage.YamlMarketStorage;
 import io.github.direkjames.lodestock.paper.trade.TradeService;
+import io.github.direkjames.lodestock.paper.log.TradeLog;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -32,6 +33,7 @@ public final class LodestockPlugin extends JavaPlugin {
     private MenuService menus;
     private GuiLayout layout;
     private List<String> warnings = List.of();
+    private TradeLog tradeLog;
 
     @Override
     public void onEnable() {
@@ -39,6 +41,8 @@ public final class LodestockPlugin extends JavaPlugin {
         saveIfMissing("items.yml");
         saveIfMissing("gui.yml");
         saveIfMissing("lang/en.yml");
+        tradeLog = new TradeLog(getDataFolder(), getLogger());
+        tradeLog.prune(getConfig().getInt("history.keep-days", 30));
 
         messages = new Messages(this);
         economy = new EconomyHook(this);
@@ -76,6 +80,7 @@ public final class LodestockPlugin extends JavaPlugin {
     public void onDisable() {
         if (market != null) market.flush();
         if (storage != null) storage.close();
+        if (tradeLog != null) tradeLog.close();
         getLogger().info("Lodestock disabled.");
     }
 
@@ -112,6 +117,7 @@ public final class LodestockPlugin extends JavaPlugin {
     public TradeService trades() { return trades; }
     public MenuService menus() { return menus; }
     public GuiLayout layout() { return layout; }
+    public TradeLog tradeLog() { return tradeLog; }
     /** Problems found during the last (re)load. */
     public List<String> warnings() { return warnings; }
 }

@@ -14,3 +14,19 @@ price-floor: 0.01
 gui:
   # How many items Shift + left-click buys in the menu (2 to 64).
   bulk-amount: 16
+
+sell-all:
+  # Players must type /lodestock sellall confirm after /lodestock sellall.
+  confirm: true
+  # How long the confirmation stays valid (minimum 5).
+  confirm-seconds: 15
+  # Time before the same player can sell everything again. 0 turns the cooldown off.
+  cooldown-seconds: 30
+
+admin:
+  # Announce /lodestock crash and /lodestock surge to the whole server.
+  broadcast: true
+
+history:
+  # Trade history older than this is deleted at startup. 0 keeps everything.
+  keep-days: 30

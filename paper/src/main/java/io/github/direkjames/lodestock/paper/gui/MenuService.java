@@ -42,6 +42,15 @@ public final class MenuService {
         populate(menu);
     }
 
+    /** Redraws every open Lodestock menu (used after admin changes). */
+    public void refreshOpen() {
+        for (Player player : plugin.getServer().getOnlinePlayers()) {
+            if (player.getOpenInventory().getTopInventory().getHolder() instanceof MarketMenu menu) {
+                refresh(menu);
+            }
+        }
+    }
+
     /** Closes every open Lodestock menu (used after a reload, when the layout may have changed). */
     public void closeAll() {
         for (Player player : plugin.getServer().getOnlinePlayers()) {

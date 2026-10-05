@@ -10,7 +10,7 @@ softdepend: [ Essentials ]
 commands:
   lodestock:
     description: Lodestock market commands
-    usage: /<command> [help|open|price|reload]
+    usage: /<command> [help|open|price|sellhand|sellall|setprice|setstock|reset|crash|surge|stats|history|reload]
     aliases: [market, openmarket]
 
 permissions:

@@ -13,15 +13,29 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 public final class TradeService {
-    /** Most items one command can move (a full inventory of 64-stacks). */
-    public static final int MAX_AMOUNT = 2304;
+    private static final int MAX_BREAKDOWN_LINES = 12;
+
+    private record Entry(Material material, String id, int count, double total) {}
+
+    private record Plan(List<Entry> entries, List<String> skipped, double total, int items) {}
 
     private final LodestockPlugin plugin;
+    private final Map<UUID, Long> pendingSellAll = new HashMap<>();  // when the confirmation expires
+    private final Map<UUID, Long> sellAllCooldown = new HashMap<>(); // when /sellall works again
 
     public TradeService(LodestockPlugin plugin) {
         this.plugin = plugin;
     }
+
+    // ---------- buying and selling one item type (used by the GUI) ----------
 
     public void buy(Player player, String itemId, int amount) {
         Messages msg = plugin.messages();
@@ -64,6 +78,7 @@ public final class TradeService {
         player.getInventory().addItem(new ItemStack(material, count)).values()
                 .forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
         market.recordBuy(itemId, count);
+        plugin.tradeLog().trade(player, "BUY", itemId, count, quote.total());
 
         msg.send(player, "buy-success",
                 Placeholder.unparsed("amount", String.valueOf(count)),
@@ -71,7 +86,7 @@ public final class TradeService {
                 Placeholder.unparsed("money", eco.format(quote.total())));
     }
 
-    /** @param amount how many to sell, or -1 for everything the player carries */
+    /** @param amount how many to sell, or -1 for everything of this item the player carries */
     public void sell(Player player, String itemId, int amount) {
         Messages msg = plugin.messages();
         Market market = plugin.market();
@@ -119,12 +134,213 @@ public final class TradeService {
             return;
         }
         market.recordSell(itemId, count);
+        plugin.tradeLog().trade(player, "SELL", itemId, count, quote.total());
 
         msg.send(player, "sell-success",
                 Placeholder.unparsed("amount", String.valueOf(count)),
                 Placeholder.unparsed("item", ItemNames.pretty(itemId)),
                 Placeholder.unparsed("money", eco.format(quote.total())));
     }
+
+    // ---------- /lodestock sellhand ----------
+
+    public void sellHand(Player player) {
+        Messages msg = plugin.messages();
+        Market market = plugin.market();
+        EconomyHook eco = plugin.economy();
+
+        if (!eco.available()) {
+            msg.send(player, "economy-missing");
+            return;
+        }
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        if (hand.getType().isAir()) {
+            msg.send(player, "sellhand-empty");
+            return;
+        }
+        Material material = hand.getType();
+        String id = material.getKey().getKey();
+        if (market.item(id).isEmpty()) {
+            msg.send(player, "unknown-item", Placeholder.unparsed("item", ItemNames.pretty(id)));
+            return;
+        }
+        // Renamed, enchanted or otherwise modified items are not the plain item, so they can't be sold.
+        if (!hand.isSimilar(new ItemStack(material))) {
+            msg.send(player, "no-items", Placeholder.unparsed("item", ItemNames.pretty(id)));
+            return;
+        }
+
+        int amount = hand.getAmount();
+        BulkQuote quote = market.previewSell(id, amount);
+        if (!quote.ok()) {
+            failure(player, quote.status());
+            return;
+        }
+        int count = quote.count();
+
+        // Pay first. If the payment is refused (e.g. money cap), nothing is taken.
+        if (!eco.deposit(player, quote.total())) {
+            msg.send(player, "transaction-failed");
+            return;
+        }
+        if (count >= amount) {
+            player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+        } else {
+            ItemStack rest = hand.clone();
+            rest.setAmount(amount - count);
+            player.getInventory().setItemInMainHand(rest);
+        }
+        market.recordSell(id, count);
+        plugin.tradeLog().trade(player, "SELL", id, count, quote.total());
+
+        msg.send(player, "sell-success",
+                Placeholder.unparsed("amount", String.valueOf(count)),
+                Placeholder.unparsed("item", ItemNames.pretty(id)),
+                Placeholder.unparsed("money", eco.format(quote.total())));
+        if (count < amount) {
+            msg.send(player, "sell-partial", Placeholder.unparsed("count", String.valueOf(count)));
+        }
+    }
+
+    // ---------- /lodestock sellall ----------
+
+    /** First step: shows what would be sold and asks for confirmation (or sells right away if confirmation is off). */
+    public void sellAllRequest(Player player) {
+        Messages msg = plugin.messages();
+        if (!plugin.economy().available()) {
+            msg.send(player, "economy-missing");
+            return;
+        }
+        long now = System.currentTimeMillis();
+        purgeExpired(now);
+        if (onCooldown(player, now)) return;
+
+        Plan plan = plan(player);
+        if (plan.entries().isEmpty()) {
+            msg.send(player, "sellall-nothing");
+            sendSkipped(player, plan);
+            return;
+        }
+        if (!plugin.getConfig().getBoolean("sell-all.confirm", true)) {
+            executeSellAll(player);
+            return;
+        }
+
+        int seconds = Math.max(5, plugin.getConfig().getInt("sell-all.confirm-seconds", 15));
+        pendingSellAll.put(player.getUniqueId(), now + seconds * 1000L);
+        msg.send(player, "sellall-confirm",
+                Placeholder.unparsed("items", String.valueOf(plan.items())),
+                Placeholder.unparsed("money", plugin.economy().format(plan.total())),
+                Placeholder.unparsed("seconds", String.valueOf(seconds)));
+        sendSkipped(player, plan);
+    }
+
+    /** Second step: only works shortly after sellAllRequest. */
+    public void sellAllConfirm(Player player) {
+        long now = System.currentTimeMillis();
+        purgeExpired(now);
+        Long expires = pendingSellAll.remove(player.getUniqueId());
+        if (expires == null || now > expires) {
+            plugin.messages().send(player, "sellall-no-pending");
+            return;
+        }
+        if (onCooldown(player, now)) return;
+        executeSellAll(player);
+    }
+
+    private void executeSellAll(Player player) {
+        Messages msg = plugin.messages();
+        EconomyHook eco = plugin.economy();
+
+        // Prices are worked out again now, so the player gets what the market pays at this moment.
+        Plan plan = plan(player);
+        if (plan.entries().isEmpty()) {
+            msg.send(player, "sellall-nothing");
+            return;
+        }
+        // One payment for everything. If it is refused, nothing is taken.
+        if (!eco.deposit(player, plan.total())) {
+            msg.send(player, "transaction-failed");
+            return;
+        }
+        for (Entry entry : plan.entries()) {
+            // The plan was counted from this same inventory a moment ago, so this always succeeds.
+            removeItems(player, entry.material(), entry.count());
+            plugin.market().recordSell(entry.id(), entry.count());
+            plugin.tradeLog().trade(player, "SELL", entry.id(), entry.count(), entry.total());
+        }
+
+        int cooldown = plugin.getConfig().getInt("sell-all.cooldown-seconds", 30);
+        if (cooldown > 0) sellAllCooldown.put(player.getUniqueId(), System.currentTimeMillis() + cooldown * 1000L);
+
+        msg.send(player, "sellall-success",
+                Placeholder.unparsed("items", String.valueOf(plan.items())),
+                Placeholder.unparsed("money", eco.format(plan.total())));
+        List<Entry> entries = plan.entries();
+        for (int i = 0; i < Math.min(MAX_BREAKDOWN_LINES, entries.size()); i++) {
+            Entry e = entries.get(i);
+            msg.send(player, "sellall-line",
+                    Placeholder.unparsed("amount", String.valueOf(e.count())),
+                    Placeholder.unparsed("item", ItemNames.pretty(e.id())),
+                    Placeholder.unparsed("money", eco.format(e.total())));
+        }
+        if (entries.size() > MAX_BREAKDOWN_LINES) {
+            msg.send(player, "sellall-more", Placeholder.unparsed("more", String.valueOf(entries.size() - MAX_BREAKDOWN_LINES)));
+        }
+        sendSkipped(player, plan);
+    }
+
+    /** Works out what a sellall would do right now. Only the hotbar and main inventory count. */
+    private Plan plan(Player player) {
+        Market market = plugin.market();
+        Map<Material, Integer> counts = new LinkedHashMap<>();
+        for (ItemStack stack : player.getInventory().getStorageContents()) {
+            if (stack == null || stack.getType().isAir()) continue;
+            Material material = stack.getType();
+            if (market.item(material.getKey().getKey()).isEmpty()) continue;
+            if (!stack.isSimilar(new ItemStack(material))) continue; // renamed or modified items are skipped
+            counts.merge(material, stack.getAmount(), Integer::sum);
+        }
+
+        List<Entry> entries = new ArrayList<>();
+        List<String> skipped = new ArrayList<>();
+        double total = 0;
+        int items = 0;
+        for (Map.Entry<Material, Integer> e : counts.entrySet()) {
+            String id = e.getKey().getKey().getKey();
+            BulkQuote quote = market.previewSell(id, e.getValue());
+            if (!quote.ok()) {
+                skipped.add(ItemNames.pretty(id));
+                continue;
+            }
+            entries.add(new Entry(e.getKey(), id, quote.count(), quote.total()));
+            total += quote.total();
+            items += quote.count();
+            if (quote.count() < e.getValue()) skipped.add(ItemNames.pretty(id));
+        }
+        return new Plan(entries, skipped, Math.round(total * 100.0) / 100.0, items);
+    }
+
+    private boolean onCooldown(Player player, long now) {
+        Long until = sellAllCooldown.get(player.getUniqueId());
+        if (until == null || now >= until) return false;
+        long seconds = (until - now + 999) / 1000;
+        plugin.messages().send(player, "sellall-cooldown", Placeholder.unparsed("seconds", String.valueOf(seconds)));
+        return true;
+    }
+
+    private void purgeExpired(long now) {
+        pendingSellAll.values().removeIf(expires -> now > expires);
+        sellAllCooldown.values().removeIf(until -> now >= until);
+    }
+
+    private void sendSkipped(Player player, Plan plan) {
+        if (plan.skipped().isEmpty()) return;
+        plugin.messages().send(player, "sellall-skipped",
+                Placeholder.unparsed("items", String.join(", ", plan.skipped())));
+    }
+
+    // ---------- shared helpers ----------
 
     private void failure(Player player, Quote.Status status) {
         Messages msg = plugin.messages();

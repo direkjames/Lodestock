@@ -1,7 +1,8 @@
 # Shown wherever a message contains <prefix>. Change it here, or remove <prefix> from a message to hide it.
 prefix: "<gray>[<gold>Lodestock<gray>] "
 
-help: "<gold>Lodestock help<newline><yellow>/lodestock<gray> - open the market<newline><yellow>/lodestock price <item><gray> - price and stock of one item<newline><yellow>/lodestock reload<gray> - reload the config"
+help: "<gold>Lodestock help<newline><yellow>/lodestock<gray> - open the market<newline><yellow>/lodestock price <item><gray> - price and stock of one item<newline><yellow>/lodestock sellhand<gray> - sell the stack in your hand<newline><yellow>/lodestock sellall<gray> - sell everything the market buys in your inventory"
+help-admin: "<gold>Admin commands<newline><yellow>/lodestock setprice <item> <price><newline><yellow>/lodestock setstock <item> <amount><newline><yellow>/lodestock reset <item> <gray>(or all)<newline><yellow>/lodestock crash <percent> [item]<newline><yellow>/lodestock surge <percent> [item]<newline><yellow>/lodestock stats<newline><yellow>/lodestock history <player> [page]<newline><yellow>/lodestock reload"
 no-permission: "<prefix><red>You don't have permission to do that."
 unknown-subcommand: "<prefix><red>Unknown command. Try <yellow>/lodestock help<red>."
 player-only: "<prefix><red>Only players can do that."
@@ -18,6 +19,7 @@ unknown-item: "<prefix><red>The market doesn't trade <item>."
 
 buy-success: "<prefix><green>Bought <amount>x <item> for <yellow><money><green>."
 sell-success: "<prefix><green>Sold <amount>x <item> for <yellow><money><green>."
+sell-partial: "<prefix><yellow>The market could only take <count>. The rest stayed in your hand."
 not-enough-money: "<prefix><red>You need <money> to buy that."
 not-enough-room: "<prefix><red>Your inventory is full."
 no-items: "<prefix><red>You don't have any <item> to sell. Only plain, unmodified items can be sold."
@@ -29,6 +31,48 @@ stock-full: "<prefix><red>The market doesn't need any more of this item right no
 price-too-low: "<prefix><red>This item can't be traded right now."
 economy-missing: "<prefix><red>No economy plugin is active. Ask an admin to install one."
 transaction-failed: "<prefix><red>The transaction failed. Nothing was changed."
+
+sellhand-empty: "<prefix><red>You aren't holding anything."
+sellall-nothing: "<prefix><red>You have nothing the market can buy right now."
+sellall-confirm: "<prefix><yellow>Selling <items> item(s) would pay about <white><money><yellow>. Type <white>/lodestock sellall confirm<yellow> within <seconds> seconds. You get the price at that moment."
+sellall-no-pending: "<prefix><red>Nothing to confirm. Type <yellow>/lodestock sellall<red> first."
+sellall-cooldown: "<prefix><red>Please wait <seconds> more second(s) before selling everything again."
+sellall-success: "<prefix><green>Sold <items> item(s) for <yellow><money><green>."
+sellall-line: "<gray>- <amount>x <item> <green><money>"
+sellall-more: "<gray>...and <more> more."
+sellall-skipped: "<prefix><gray>Not fully sold (market full or selling off): <items>"
+
+usage-setprice: "<prefix><red>Usage: <yellow>/lodestock setprice <item> <price>"
+usage-setstock: "<prefix><red>Usage: <yellow>/lodestock setstock <item> <amount>"
+usage-reset: "<prefix><red>Usage: <yellow>/lodestock reset <item><red> or <yellow>/lodestock reset all"
+usage-crash: "<prefix><red>Usage: <yellow>/lodestock crash <percent> [item]"
+usage-surge: "<prefix><red>Usage: <yellow>/lodestock surge <percent> [item]"
+usage-history: "<prefix><red>Usage: <yellow>/lodestock history <player> [page]"
+invalid-number: "<prefix><red>That isn't a valid number."
+invalid-percent: "<prefix><red>The percent must be a number from 1 to <max>."
+admin-error: "<prefix><red><error>"
+player-not-found: "<prefix><red>No player named <player> has joined this server."
+
+setprice-success: "<prefix><green>The price of <item> is now <yellow><price><green>."
+setstock-success: "<prefix><green>The stock of <item> is now <yellow><stock><green>."
+reset-success: "<prefix><green><item> was reset to its base price and stock."
+reset-all-confirm: "<prefix><yellow>This resets the price and stock of EVERY item. Type <white>/lodestock reset all confirm<yellow> to continue."
+reset-all-success: "<prefix><green>All items were reset."
+
+crash-broadcast: "<prefix><red><bold>MARKET CRASH!</bold> Every price has fallen by <percent>%."
+crash-broadcast-item: "<prefix><red><bold>MARKET CRASH!</bold> The price of <item> has fallen by <percent>%."
+surge-broadcast: "<prefix><green><bold>MARKET SURGE!</bold> Every price has risen by <percent>%."
+surge-broadcast-item: "<prefix><green><bold>MARKET SURGE!</bold> The price of <item> has risen by <percent>%."
+
+stats-header: "<gold>Market stats <gray>(<count> items)"
+stats-up: "<gray>Up: <white><item> <green>+<percent>% <dark_gray>(<price>)"
+stats-down: "<gray>Down: <white><item> <red>-<percent>% <dark_gray>(<price>)"
+stats-stock: "<gray>Low stock: <white><item> <yellow><stock>/<max>"
+
+history-header: "<gold>Trades of <player> <gray>(page <page>/<pages>, <total> total)"
+history-buy: "<gray><time> <green>BUY <white><amount>x <item> <yellow><money>"
+history-sell: "<gray><time> <red>SELL <white><amount>x <item> <yellow><money>"
+history-empty: "<prefix><gray><player> has no recorded trades."
 
 gui:
   unavailable: "<red>unavailable"
