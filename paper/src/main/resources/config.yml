@@ -1,0 +1,12 @@
+# Language file to use (lang/<name>.yml). Missing messages fall back to English.
+language: en
+
+# Percent taken off the price when a player SELLS.
+# Keep this above roughly 1% (for a multiplier of 0.01), or players can make free money by looping.
+tax-percent: 10.0
+
+# How much each trade moves the price (0.01 = about 1%).
+multiplier: 0.01
+
+# Prices never fall below this.
+price-floor: 0.01

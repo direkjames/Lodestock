@@ -1,0 +1,51 @@
+package io.github.direkjames.lodestock.paper.config;
+
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.java.JavaPlugin;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+
+/** Language file loader. Missing keys fall back to the bundled English file. */
+public final class Messages {
+    private static final MiniMessage MM = MiniMessage.miniMessage();
+
+    private final JavaPlugin plugin;
+    private YamlConfiguration lang = new YamlConfiguration();
+    private YamlConfiguration fallback = new YamlConfiguration();
+
+    public Messages(JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    public void reload() {
+        String code = plugin.getConfig().getString("language", "en").replaceAll("[^a-zA-Z0-9_-]", "");
+        File file = new File(plugin.getDataFolder(), "lang/" + code + ".yml");
+        lang = file.exists() ? YamlConfiguration.loadConfiguration(file) : new YamlConfiguration();
+        if (!file.exists()) {
+            plugin.getLogger().warning("Language file lang/" + code + ".yml not found, using English.");
+        }
+        try (InputStream in = plugin.getResource("lang/en.yml")) {
+            fallback = in == null ? new YamlConfiguration()
+                    : YamlConfiguration.loadConfiguration(new InputStreamReader(in, StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            plugin.getLogger().warning("Could not read the bundled language file: " + e.getMessage());
+        }
+    }
+
+    public Component get(String key, TagResolver... resolvers) {
+        String raw = lang.getString(key, fallback.getString(key, "<red>Missing message: " + key));
+        return MM.deserialize(raw, resolvers);
+    }
+
+    public void send(CommandSender to, String key, TagResolver... resolvers) {
+        to.sendMessage(get(key, resolvers));
+    }
+}

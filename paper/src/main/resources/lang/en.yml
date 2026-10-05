@@ -1,0 +1,8 @@
+help: "<gold>Lodestock<newline><yellow>/lodestock list [page]<gray> - show market prices<newline><yellow>/lodestock reload<gray> - reload the config"
+no-permission: "<red>You don't have permission to do that."
+unknown-subcommand: "<red>Unknown command. Try <yellow>/lodestock help<red>."
+reloaded: "<green>Lodestock reloaded. <items> items loaded."
+reload-failed: "<red>Reload failed, the old settings are still in use. Check the console."
+list-header: "<gold>Market prices <gray>(page <page>/<pages>)"
+list-line: "<gray>- <white><item> <green>$<price> <dark_gray>(stock <stock>/<max>)"
+list-empty: "<red>The market has no items."
