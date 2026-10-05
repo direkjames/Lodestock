@@ -1,23 +1,27 @@
 plugins {
     `java-library`
     id("com.gradleup.shadow") version "9.0.0"
+    id("xyz.jpenilla.run-paper") version "3.1.0"
 }
 
+// Compile for Java 21 so the same jar runs on Java 21 (1.21.11) and Java 25 (26.x).
 tasks.withType<JavaCompile>().configureEach {
-    options.release.set(25)
+    options.release.set(21)
 }
 
 repositories {
-    maven("https://repo.purpurmc.org/snapshots")
+    maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://jitpack.io")
 }
 
 dependencies {
     implementation(project(":core"))
-    compileOnly("org.purpurmc.purpur:purpur-api:26.1.2.build.2583-stable")
+
+    // Compile against the OLDEST supported version, so we can't use an API that 1.21.11 lacks.
+    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
-    // Add after you get your bStats plugin ID (use the version bStats shows you):
-    implementation("org.bstats:bstats-bukkit:3.2.1")
+
+    implementation("org.bstats:bstats-bukkit:3.1.0")
 }
 
 tasks.processResources {
@@ -33,10 +37,19 @@ tasks.jar {
 tasks.shadowJar {
     archiveClassifier.set("")
     archiveBaseName.set("Lodestock-Paper")
-    // When you add bStats, uncomment this:
     relocate("org.bstats", "io.github.direkjames.lodestock.libs.bstats")
 }
 
 tasks.build {
     dependsOn(tasks.shadowJar)
+}
+
+tasks {
+    runServer {
+        // Pick the Minecraft version with -PmcVersion=26.1 (default 1.21.11).
+        val mcVersion = providers.gradleProperty("mcVersion").getOrElse("1.21.11")
+        minecraftVersion(mcVersion)
+        // Each version gets its own folder, so worlds from different versions never mix.
+        runDirectory.set(layout.projectDirectory.dir("run/$mcVersion"))
+    }
 }

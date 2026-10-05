@@ -14,7 +14,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 25
+          java-version: 21
 
       - uses: gradle/actions/setup-gradle@v4
 
@@ -23,6 +23,20 @@ jobs:
 
       - name: Build and test
         run: ./gradlew build
+
+      - name: Check our classes are Java 21
+        run: |
+          mkdir -p /tmp/check && cd /tmp/check
+          unzip -q "$GITHUB_WORKSPACE/paper/build/libs/Lodestock-Paper.jar" \
+            'io/github/direkjames/lodestock/paper/*' 'io/github/direkjames/lodestock/core/*'
+          for f in $(find . -name '*.class'); do
+            major=$(javap -v "$f" | grep 'major version' | awk '{print $3}')
+            if [ "$major" != "65" ]; then
+              echo "$f is class version $major, expected 65 (Java 21)"
+              exit 1
+            fi
+          done
+          echo "All classes are Java 21."
 
       - name: Upload plugin jar
         uses: actions/upload-artifact@v4
