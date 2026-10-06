@@ -34,6 +34,12 @@ All notable changes to Lodestock are listed here. Lodestock uses [semantic versi
 - New messages `trade-cancelled` and `admin-cancelled`. Existing `lang/en.yml` files are not changed: the built-in text is used until you add them.
 - New `jitpack.yml` so the API can be used from JitPack.
 
+### Discord
+- New optional Discord webhook (`discord.yml`, off by default): a message for big trades (`big-trades.min-total`), for market changes made by hand (including ones made through the API), and a daily summary at a time and time zone you choose. See the README.
+- New `/lodestock discord test` and `/lodestock discord summary` commands (`lodestock.admin.discord`, operators by default).
+- Only real Discord webhook addresses are accepted, the address is never logged, mentions are switched off, and sending happens in the background with Discord's rate limits respected.
+- `discord.yml` is created on the first start of this version. New messages `discord-*` and `usage-discord` use the built-in text until you add them to your `lang/en.yml`.
+
 ### Storage
 - The database file is upgraded automatically (schema version 5: adds the price history table and the lifetime stats table).
 

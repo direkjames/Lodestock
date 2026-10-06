@@ -15,6 +15,7 @@ Lodestock is a rework of **[OreMarket](https://github.com/OllieJW/Ore-Market) by
 - A fully configurable window: title, rows, item slots, fill item, page buttons, and items pinned to exact slots.
 - Admin tools: set prices and stock, reset, market crash and surge, stats, and a per-player trade history.
 - Leaderboards (`/lodestock top`): top sellers, biggest spenders, most active traders, biggest single trade and net earners, for the last 24 hours, 7 days, 30 days or all time, for every item or one item. PlaceholderAPI placeholders for holograms and scoreboards.
+- Discord webhook messages (optional) for big trades, admin changes and a daily summary. See [Discord](#discord).
 - A [public API and events](docs/API.md) for other plugins: read prices and stats, react to trades, cancel them, and change the market.
 - Economy safety tools: `/lodestock audit` finds settings that let players make free money, `/lodestock economy` shows how much money the market created, and [a guide with ready-made price presets](docs/ECONOMY.md) for low, balanced and high-income servers.
 - Prices that drift back toward their base price and stock that regenerates, so crashes and surges fade on their own (even while the server is off).
@@ -174,6 +175,21 @@ Lodestock does not draw holograms itself. Use a hologram plugin that understands
 ```
 
 You do **not** need ajLeaderboards for this. If you already use it, point it at a per-player placeholder such as `%lodestock_earned%` and it builds its own daily, weekly and monthly boards from that number.
+
+## Discord
+
+Lodestock can post to a Discord channel: big trades, market changes made by hand (crash, surge, reset, setprice, setstock) and a daily summary. It is off by default.
+
+1. In Discord, open the channel's settings, then **Integrations > Webhooks > New Webhook > Copy Webhook URL**.
+2. Open `plugins/Lodestock/discord.yml`, paste the address into `webhook-url` and set `enabled: true`.
+3. Run `/lodestock reload`, then `/lodestock discord test`. A test message should appear in the channel.
+
+Other settings in `discord.yml`: `big-trades.min-total` (the smallest trade, in money, that gets a message), `admin-actions`, `daily-summary` (time and time zone), and the name and picture shown on the messages.
+
+- `/lodestock discord test` sends a test message and `/lodestock discord summary` sends the last 24 hours now (permission `lodestock.admin.discord`, operators by default).
+- Treat the webhook address like a password. Anyone with it can post in your channel. Lodestock only accepts real `discord.com` webhook addresses, never prints the address in the console, and switches mentions off, so a player name can't ping `@everyone`.
+- Messages are sent in the background. If Discord is slow or down, the server is not affected, and the console shows at most one warning a minute.
+- `discord.yml` is created on the first start of this version, with the webhook off.
 
 ## Protecting your economy
 

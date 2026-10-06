@@ -1,0 +1,36 @@
+# Lodestock - Discord webhook
+#
+# Posts big trades, admin changes (crash, surge, reset, ...) and a daily summary to a Discord channel.
+# It is OFF until you turn it on and paste a webhook address.
+#
+# How to get a webhook address: in Discord, open the channel's settings > Integrations > Webhooks >
+# New Webhook > Copy Webhook URL.
+#
+# Treat the address like a password: anyone who has it can post in that channel.
+# Do not share this file or paste it into a public place.
+#
+# After changing this file, run /lodestock reload. Then run /lodestock discord test to check it.
+
+enabled: false
+webhook-url: ""
+
+# The name and picture shown on the messages (both optional). The picture must be an https:// address.
+username: "Lodestock"
+avatar-url: ""
+
+# A message for every single trade that is worth at least this much money. Players never get pinged:
+# mentions are always switched off in the messages Lodestock sends.
+big-trades:
+  enabled: true
+  min-total: 10000
+
+# A message when an admin (or another plugin using the Lodestock API) changes the market by hand:
+# crash, surge, reset, setprice and setstock. Normal trading and price recovery are not included.
+admin-actions: true
+
+# Once a day, the last 24 hours in short: trades, money in and out, money created, the top earners and
+# the items that paid out the most. Nothing is sent on a day with no trades.
+daily-summary:
+  enabled: false
+  time: "20:00"        # 24-hour clock
+  timezone: ""         # such as "Asia/Manila" or "America/New_York". Empty uses the server's time zone.

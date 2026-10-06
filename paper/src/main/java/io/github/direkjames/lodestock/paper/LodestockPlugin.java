@@ -9,6 +9,7 @@ import io.github.direkjames.lodestock.paper.command.LodestockCommand;
 import io.github.direkjames.lodestock.paper.config.ConfigLoader;
 import io.github.direkjames.lodestock.paper.config.ConfigWarnings;
 import io.github.direkjames.lodestock.paper.config.Messages;
+import io.github.direkjames.lodestock.paper.discord.DiscordService;
 import io.github.direkjames.lodestock.paper.economy.EconomyHook;
 import io.github.direkjames.lodestock.paper.gui.ChartService;
 import io.github.direkjames.lodestock.paper.gui.GuiLayout;
@@ -53,6 +54,7 @@ public final class LodestockPlugin extends JavaPlugin {
     private EconomyHook economy;
     private TradeService trades;
     private MarketAdmin admin;
+    private DiscordService discord;
     private MenuService menus;
     private ChartService charts;
     private GuiLayout layout;
@@ -63,6 +65,7 @@ public final class LodestockPlugin extends JavaPlugin {
         saveDefaultConfig();
         saveIfMissing("items.yml");
         saveIfMissing("gui.yml");
+        saveIfMissing("discord.yml");
         saveIfMissing("lang/en.yml");
 
         try {
@@ -92,6 +95,7 @@ public final class LodestockPlugin extends JavaPlugin {
         economy = new EconomyHook(this);
         trades = new TradeService(this);
         admin = new MarketAdmin(this);
+        discord = new DiscordService(this);
         menus = new MenuService(this);
         charts = new ChartService(this);
 
@@ -105,6 +109,7 @@ public final class LodestockPlugin extends JavaPlugin {
         recovery = new RecoveryTask(this, database);
         recovery.start();
         menus.start();
+        discord.start();
 
         PluginCommand command = Objects.requireNonNull(getCommand("lodestock"));
         LodestockCommand handler = new LodestockCommand(this);
@@ -131,6 +136,7 @@ public final class LodestockPlugin extends JavaPlugin {
     public void onDisable() {
         getServer().getServicesManager().unregisterAll(this);
         PlaceholderHook.unregister();
+        if (discord != null) discord.shutdown();
         if (priceHistory != null) priceHistory.shutdown();
         if (menus != null) menus.stop();
         if (recovery != null) recovery.stop();
@@ -148,6 +154,7 @@ public final class LodestockPlugin extends JavaPlugin {
             ConfigLoader.Loaded loaded = ConfigLoader.load(this, warn);
             GuiLayout newLayout = GuiLayoutLoader.load(this, loaded.items(), loaded.pins(), warn);
             messages.reload();
+            discord.reload();
 
             if (market != null) market.flush();
             market = new Market(loaded.settings(), loaded.recovery(), loaded.items(), storage);
@@ -177,6 +184,7 @@ public final class LodestockPlugin extends JavaPlugin {
     public EconomyHook economy() { return economy; }
     public TradeService trades() { return trades; }
     public MarketAdmin admin() { return admin; }
+    public DiscordService discord() { return discord; }
     public MenuService menus() { return menus; }
     public ChartService charts() { return charts; }
     public GuiLayout layout() { return layout; }

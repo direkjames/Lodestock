@@ -43,7 +43,7 @@ public final class LodestockCommand implements TabExecutor {
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.systemDefault());
     private static final DecimalFormat PERCENT = new DecimalFormat("0.#", DecimalFormatSymbols.getInstance(Locale.ROOT));
     private static final List<String> ADMIN_COMMANDS =
-            List.of("setprice", "setstock", "reset", "crash", "surge", "stats", "history", "audit", "economy", "reload");
+            List.of("setprice", "setstock", "reset", "crash", "surge", "stats", "history", "audit", "economy", "discord", "reload");
 
     private final LodestockPlugin plugin;
 
@@ -74,6 +74,7 @@ public final class LodestockCommand implements TabExecutor {
             case "history" -> history(sender, args);
             case "audit" -> audit(sender);
             case "economy" -> economy(sender, args);
+            case "discord" -> discord(sender, args);
             case "reload" -> reload(sender);
             default -> msg.send(sender, "unknown-subcommand");
         }
@@ -605,6 +606,26 @@ public final class LodestockCommand implements TabExecutor {
         }
     }
 
+    private void discord(CommandSender sender, String[] args) {
+        Messages msg = plugin.messages();
+        if (!allowed(sender, "lodestock.admin.discord")) return;
+        String what = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
+        if (!what.equals("test") && !what.equals("summary")) {
+            msg.send(sender, "usage-discord");
+            return;
+        }
+        if (!plugin.discord().ready()) {
+            msg.send(sender, "discord-not-ready", Placeholder.unparsed("reason", plugin.discord().problem()));
+            return;
+        }
+        msg.send(sender, "discord-sending");
+        var result = what.equals("test") ? plugin.discord().test() : plugin.discord().summary(true);
+        result.thenAccept(r -> plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (r.ok()) msg.send(sender, "discord-ok");
+            else msg.send(sender, "discord-failed", Placeholder.unparsed("error", String.valueOf(r.error())));
+        }));
+    }
+
     private void reload(CommandSender sender) {
         Messages msg = plugin.messages();
         if (!allowed(sender, "lodestock.admin.reload")) return;
@@ -688,6 +709,7 @@ public final class LodestockCommand implements TabExecutor {
             if (sub.equals("crash") || sub.equals("surge")) return filter(List.of("10", "25", "50"), typed);
             if (sub.equals("sellall")) return filter(List.of("confirm"), typed);
             if (sub.equals("economy")) return filter(List.of("24h", "7d", "30d"), typed);
+            if (sub.equals("discord")) return filter(List.of("test", "summary"), typed);
             if (sub.equals("top") && sender.hasPermission("lodestock.top")) {
                 return filter(Arrays.stream(Board.values()).filter(b -> canSeeBoard(sender, b)).map(Board::key).toList(), typed);
             }

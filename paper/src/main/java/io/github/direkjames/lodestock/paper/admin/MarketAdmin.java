@@ -108,5 +108,6 @@ public final class MarketAdmin {
     private void applied(String source, String action, String details) {
         plugin.tradeLog().admin(source, action, details);
         plugin.menus().refreshOpen();
+        plugin.discord().adminAction(source, action, details);
     }
 }
