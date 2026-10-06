@@ -2,7 +2,7 @@
 
 A stock market for ores in Minecraft. Prices move with every trade, so what players buy and sell actually matters. Built for Paper and Purpur servers (OneBlock servers especially).
 
-> **Status: public beta (0.2.0-beta.1).** All planned features are in, but expect small bugs and the occasional config change before 1.0.0.
+> **Status: public beta (0.3.0-beta.1).** All planned features are in, but expect small bugs and the occasional config change before 1.0.0.
 
 Lodestock is a rework of **[OreMarket](https://github.com/OllieJW/Ore-Market) by OllieJW**, rebuilt for modern Minecraft with the original author's permission. Thank you, OllieJW, for the idea and the original plugin.
 
@@ -14,6 +14,10 @@ Lodestock is a rework of **[OreMarket](https://github.com/OllieJW/Ore-Market) by
 - `/lodestock sellhand` and `/lodestock sellall` for fast selling, with a confirmation step and a cooldown on `sellall`.
 - A fully configurable window: title, rows, item slots, fill item, page buttons, and items pinned to exact slots.
 - Admin tools: set prices and stock, reset, market crash and surge, stats, and a per-player trade history.
+- Prices that drift back toward their base price and stock that regenerates, so crashes and surges fade on their own (even while the server is off).
+- Daily buy and sell limits per player and item, with a configurable reset time and time zone.
+- Every item has its own permission, `lodestock.ore.<item>`, that everyone has by default, so you can lock items for ranks.
+- Market windows that update by themselves when prices, stock or limits change.
 - Crash-safe storage: prices, stock and history are saved to a SQLite database as they change, so a server crash loses almost nothing.
 - MiniMessage language file with a configurable message prefix.
 - One jar for Paper and Purpur 1.21.11, 26.1, 26.2 and 26.3.
@@ -219,11 +223,11 @@ The page buttons only appear when there is a page to go to. Bad slots and overla
 
 ## Roadmap
 
-1. **Done:** the Paper and Purpur plugin with crash-safe SQLite storage (the current beta).
-2. **Next:** extra features and performance checks, such as price history and daily limits.
+1. **Done:** the Paper and Purpur plugin, crash-safe SQLite storage, price drift, daily limits, per-item permissions and live windows (the current beta).
+2. **Next:** price history and charts, a public API, a Discord webhook, and scheduled crash and surge events.
 3. **Then:** polish and the 1.0.0 release.
 
-Fabric and NeoForge versions are postponed.
+Fabric and NeoForge versions, and ItemsAdder/Oraxen support, are postponed.
 
 ## Building from source
 

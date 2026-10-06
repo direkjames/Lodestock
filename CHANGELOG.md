@@ -2,7 +2,9 @@
 
 All notable changes to Lodestock are listed here. Lodestock uses [semantic versioning](https://semver.org/).
 
-## Unreleased
+## 0.3.0-beta.1 - 2026-10-06
+
+Second public beta. Adds price drift, daily limits, per-item permissions and live market windows. Read "Upgrading from 0.2.0-beta.1" below before updating.
 
 ### Market
 - Price drift: prices slowly move back toward their base price, so crashes and surges fade.
