@@ -1,5 +1,6 @@
 package io.github.direkjames.lodestock.paper.config;
 
+import io.github.direkjames.lodestock.core.audit.EconomyAudit;
 import io.github.direkjames.lodestock.core.market.MarketItem;
 import io.github.direkjames.lodestock.core.market.MarketSettings;
 import io.github.direkjames.lodestock.core.market.RecoverySettings;
@@ -42,10 +43,6 @@ public final class ConfigLoader {
                 cfg.getDouble("tax-percent", 10.0),
                 cfg.getDouble("multiplier", 0.01),
                 cfg.getDouble("price-floor", 0.01));
-        if (settings.hasBuySellLoop()) {
-            warn.add("tax-percent is too low for your multiplier: players can make free money by buying and selling in a loop. Raise tax-percent.");
-        }
-
         RecoverySettings recovery = loadRecovery(cfg, warn);
         LimitSettings limits = loadLimits(cfg, warn);
         HistorySettings history = loadHistory(cfg, warn);
@@ -100,6 +97,13 @@ public final class ConfigLoader {
                     pins.put(id, new Pin(slot, page));
                 }
             }
+        }
+
+        EconomyAudit.Report audit = EconomyAudit.run(settings, recovery, limits.dailyBuy(), limits.dailySell(), items, null);
+        long problems = audit.count(EconomyAudit.Level.WARN);
+        if (problems > 0) {
+            warn.add("Economy audit: " + problems + " problem(s) that could let players make free money "
+                    + "(for example tax-percent too low for the multiplier). Run /lodestock audit for details.");
         }
         return new Loaded(settings, recovery, limits, history, items, pins);
     }

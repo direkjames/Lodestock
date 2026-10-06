@@ -2,7 +2,7 @@
 prefix: "<gray>[<gold>Lodestock<gray>] "
 
 help: "<gold>Lodestock help<newline><yellow>/lodestock<gray> - open the market<newline><yellow>/lodestock price <item><gray> - price and stock of one item<newline><yellow>/lodestock limits<gray> - what you can still buy and sell today<newline><yellow>/lodestock chart <item> [24h|7d|all]<gray> - price history<newline><yellow>/lodestock sellhand<gray> - sell the stack in your hand<newline><yellow>/lodestock sellall<gray> - sell everything the market buys in your inventory"
-help-admin: "<gold>Admin commands<newline><yellow>/lodestock setprice <item> <price><newline><yellow>/lodestock setstock <item> <amount><newline><yellow>/lodestock reset <item> <gray>(or all)<newline><yellow>/lodestock crash <percent> [item]<newline><yellow>/lodestock surge <percent> [item]<newline><yellow>/lodestock stats<newline><yellow>/lodestock history <player> [page]<newline><yellow>/lodestock reload"
+help-admin: "<gold>Admin commands<newline><yellow>/lodestock setprice <item> <price><newline><yellow>/lodestock setstock <item> <amount><newline><yellow>/lodestock reset <item> <gray>(or all)<newline><yellow>/lodestock crash <percent> [item]<newline><yellow>/lodestock surge <percent> [item]<newline><yellow>/lodestock stats<newline><yellow>/lodestock history <player> [page]<newline><yellow>/lodestock audit<gray> - check the setup for money exploits<newline><yellow>/lodestock economy [24h|7d|30d]<gray> - how much money the market created<newline><yellow>/lodestock reload"
 no-permission: "<prefix><red>You don't have permission to do that."
 unknown-subcommand: "<prefix><red>Unknown command. Try <yellow>/lodestock help<red>."
 player-only: "<prefix><red>Only players can do that."
@@ -92,6 +92,28 @@ history-buy: "<gray><time> <green>BUY <white><amount>x <item> <yellow><money>"
 history-sell: "<gray><time> <red>SELL <white><amount>x <item> <yellow><money>"
 history-empty: "<prefix><gray><player> has no recorded trades."
 
+usage-economy: "<prefix><red>Usage: <yellow>/lodestock economy [24h|7d|30d] <gray>(hours or days, such as 12h or 3d)"
+economy-none: "<prefix><gray>No trades in the last <range>."
+economy-header: "<gold>Economy report <gray>(last <range>)"
+economy-totals: "<gray>Trades: <white><trades> <gray>by <white><players> <gray>player(s)"
+economy-flow: "<gray>Players spent <white><in><gray>, the market paid out <white><out>"
+economy-net-up: "<gray>Money created: <yellow>+<net> <dark_gray>(paid out minus spent)"
+economy-net-down: "<gray>Money removed: <green>-<net> <dark_gray>(spent minus paid out)"
+economy-top-header: "<gray>Biggest net earners:"
+economy-top-up: "<gray> <rank>. <white><player> <yellow>+<net>"
+economy-top-down: "<gray> <rank>. <white><player> <green>-<net>"
+economy-items-header: "<gray>Most paid out for:"
+economy-items-line: "<gray> <white><item> <yellow><money>"
+
+audit-header: "<gold>Economy audit <gray>(<warnings> warning(s), <notes> note(s))"
+audit-ok: "<green>No warnings: buying and selling does not make free money with your current settings."
+audit-warn-line: "<red>! <white><text>"
+audit-note-line: "<yellow>- <gray><text>"
+audit-more: "<gray>...and <more> more. Fix the ones above first."
+audit-ceiling: "<gray>Rough most the market can pay out per day with regeneration on: <white><total>"
+audit-ceiling-line: "<gray>  <item> <white><money>"
+audit-footer: "<dark_gray>How to fix each one: github.com/direkjames/Lodestock (docs/ECONOMY.md)"
+
 gui:
   unavailable: "<red>unavailable"
   item-lore:
@@ -135,3 +157,15 @@ gui:
   chart-info-empty:
     - "<gray>No price history yet."
     - "<gray>Check back in a few minutes."
+
+audit:
+  way-buy-first: "buying then selling"
+  way-sell-first: "selling then buying back"
+  tax-zero: "tax-percent is 0, so selling costs nothing and buying and selling is free. Set it to 10 or more."
+  tax-low: "tax-percent is only <tax>%, so a buy and sell loses almost nothing. 10 or more is safer."
+  multiplier-high: "multiplier is <value>, so one trade moves a price a lot and big trades can swing it. 0.01 to 0.02 is typical."
+  floor-low: "price-floor is <floor> but your cheapest item costs <cheapest>. Prices can crash to almost nothing and be bought up cheap. Try about 5 to 10 percent of your cheapest item."
+  renewable-no-limits: "Prices and stock recover by themselves and there are no daily limits, so a player with an endless item source can sell every cycle. Add limits.daily-sell or a daily-sell per item."
+  round-trip: "<item>: <way> <amount> makes <profit> from nothing. Raise tax-percent or lower multiplier."
+  crafting-loop: "Buy <from>, turn it into <to> and sell it: <profit> profit each time. Raise the price of <from> or lower <to>."
+  crafting-loop-now: "Right now (prices are off after a crash, surge or heavy trading): buy <from>, turn it into <to> and sell it for <profit> profit each time."

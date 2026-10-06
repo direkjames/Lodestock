@@ -2,14 +2,16 @@
 language: en
 
 # Percent taken off the price when a player SELLS.
-# Keep this above roughly 1% (for a multiplier of 0.01), or players can make free money by looping.
+# This must be high enough for the multiplier, or players can make free money by buying and selling in a loop.
+# Lowest safe tax for each multiplier: 0.005 -> 3, 0.01 -> 5, 0.02 -> 12, 0.03 -> 16, 0.05 -> 24.
+# Run /lodestock audit after changing it. Guide: docs/ECONOMY.md in the Lodestock GitHub repository.
 tax-percent: 10.0
 
-# How much each trade moves the price (0.01 = about 1%).
+# How much each trade moves the price (0.01 = about 1%). Keep it between 0.01 and 0.02 unless you know why.
 multiplier: 0.01
 
-# Prices never fall below this.
-price-floor: 0.01
+# Prices never fall below this. Keep it at about 5 to 10 percent of your cheapest item.
+price-floor: 0.25
 
 gui:
   # How many items Shift + left-click buys in the menu (2 to 64).

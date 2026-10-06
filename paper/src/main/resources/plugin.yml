@@ -10,7 +10,7 @@ softdepend: [ Essentials ]
 commands:
   lodestock:
     description: Lodestock market commands
-    usage: /<command> [help|open|price|limits|chart|sellhand|sellall|setprice|setstock|reset|crash|surge|stats|history|reload]
+    usage: /<command> [help|open|price|limits|chart|sellhand|sellall|setprice|setstock|reset|crash|surge|stats|history|audit|economy|reload]
     aliases: [market, openmarket]
 
 permissions:
@@ -58,6 +58,12 @@ permissions:
     default: op
   lodestock.admin.history:
     default: op
+  lodestock.admin.audit:
+    description: Check the setup for ways to make free money
+    default: op
+  lodestock.admin.economy:
+    description: See how much money the market created or removed
+    default: op
   lodestock.admin.*:
     description: All admin permissions
     default: op
@@ -70,3 +76,5 @@ permissions:
       lodestock.admin.surge: true
       lodestock.admin.stats: true
       lodestock.admin.history: true
+      lodestock.admin.audit: true
+      lodestock.admin.economy: true

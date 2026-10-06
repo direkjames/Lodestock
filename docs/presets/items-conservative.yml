@@ -1,0 +1,138 @@
+# Lodestock items.yml preset: Conservative (low income)
+#
+# Good for: Skyblock, OneBlock, prison or any server where players get endless items from a generator, and servers with a small, tight economy.
+#
+# How to use: replace the contents of plugins/Lodestock/items.yml with this file, then also copy the
+# config.yml settings from docs/ECONOMY.md (they matter just as much as the prices). Run /lodestock reload
+# and then /lodestock audit. Prices already saved by the market stay until you run /lodestock reset all confirm.
+#
+# The prices follow the crafting rules, so nobody can make money by crafting:
+#   - a block costs exactly 9 times its ingot, a raw ore costs the same as its ingot
+#   - blocks do not regenerate stock (regen: false), so they cannot out-pay the ingots
+#   - raw ores get half the stock room of ingots, so one material cannot pay out three times over
+# daily-sell is how many one player can sell of that item per day. It is roughly the same amount of
+# money for every item, so cheap items allow more. Raise or lower them, or delete them to remove the limit.
+
+coal:
+  base-price: 1.5
+  start-stock: 100
+  max-stock: 1000
+  daily-sell: 650
+coal_block:
+  base-price: 13.5
+  start-stock: 12
+  max-stock: 112
+  daily-sell: 35
+  regen: false
+raw_copper:
+  base-price: 2.0
+  start-stock: 50
+  max-stock: 500
+  daily-sell: 250
+copper_ingot:
+  base-price: 2.0
+  start-stock: 100
+  max-stock: 1000
+  daily-sell: 500
+copper_block:
+  base-price: 18.0
+  start-stock: 12
+  max-stock: 112
+  daily-sell: 25
+  regen: false
+raw_iron:
+  base-price: 4.0
+  start-stock: 38
+  max-stock: 375
+  daily-sell: 100
+iron_ingot:
+  base-price: 4.0
+  start-stock: 75
+  max-stock: 750
+  daily-sell: 250
+iron_block:
+  base-price: 36.0
+  start-stock: 8
+  max-stock: 84
+  daily-sell: 10
+  regen: false
+raw_gold:
+  base-price: 10.0
+  start-stock: 25
+  max-stock: 250
+  daily-sell: 50
+gold_ingot:
+  base-price: 10.0
+  start-stock: 50
+  max-stock: 500
+  daily-sell: 100
+gold_block:
+  base-price: 90.0
+  start-stock: 6
+  max-stock: 56
+  daily-sell: 5
+  regen: false
+lapis_lazuli:
+  base-price: 2.5
+  start-stock: 75
+  max-stock: 750
+  daily-sell: 400
+lapis_block:
+  base-price: 22.5
+  start-stock: 8
+  max-stock: 84
+  daily-sell: 20
+  regen: false
+redstone:
+  base-price: 1.5
+  start-stock: 100
+  max-stock: 1000
+  daily-sell: 650
+redstone_block:
+  base-price: 13.5
+  start-stock: 12
+  max-stock: 112
+  daily-sell: 35
+  regen: false
+amethyst_shard:
+  base-price: 4.0
+  start-stock: 50
+  max-stock: 500
+  daily-sell: 250
+quartz:
+  base-price: 3.0
+  start-stock: 75
+  max-stock: 750
+  daily-sell: 300
+emerald:
+  base-price: 20.0
+  start-stock: 25
+  max-stock: 250
+  daily-sell: 50
+emerald_block:
+  base-price: 180.0
+  start-stock: 3
+  max-stock: 28
+  daily-sell: 2
+  regen: false
+diamond:
+  base-price: 40.0
+  start-stock: 25
+  max-stock: 250
+  daily-sell: 25
+diamond_block:
+  base-price: 360.0
+  start-stock: 3
+  max-stock: 28
+  daily-sell: 1
+  regen: false
+ancient_debris:
+  base-price: 75.0
+  start-stock: 5
+  max-stock: 50
+  daily-sell: 6
+netherite_scrap:
+  base-price: 75.0
+  start-stock: 10
+  max-stock: 100
+  daily-sell: 10

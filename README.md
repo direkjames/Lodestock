@@ -14,6 +14,7 @@ Lodestock is a rework of **[OreMarket](https://github.com/OllieJW/Ore-Market) by
 - `/lodestock sellhand` and `/lodestock sellall` for fast selling, with a confirmation step and a cooldown on `sellall`.
 - A fully configurable window: title, rows, item slots, fill item, page buttons, and items pinned to exact slots.
 - Admin tools: set prices and stock, reset, market crash and surge, stats, and a per-player trade history.
+- Economy safety tools: `/lodestock audit` finds settings that let players make free money, `/lodestock economy` shows how much money the market created, and [a guide with ready-made price presets](docs/ECONOMY.md) for low, balanced and high-income servers.
 - Prices that drift back toward their base price and stock that regenerates, so crashes and surges fade on their own (even while the server is off).
 - Price history: press Q on an item for a bar chart of its price (24 hours, 7 days or all time), with a 24h trend line in each item's description and `/lodestock chart` for chat.
 - Daily buy and sell limits per player and item, with a configurable reset time and time zone.
@@ -80,6 +81,8 @@ All of these also work from the console.
 | `/lodestock surge <percent> [item]` | Raise prices by 1 to 1000%, for one item or all | `lodestock.admin.surge` |
 | `/lodestock stats` | Biggest price movers and lowest stock | `lodestock.admin.stats` |
 | `/lodestock history <player> [page]` | A player's trades, newest first | `lodestock.admin.history` |
+| `/lodestock audit` | Checks your settings and prices for ways to make free money (buy-and-sell loops, crafting loops, risky values) and estimates the most the market can pay out per day | `lodestock.admin.audit` |
+| `/lodestock economy [24h\|7d\|30d]` | Money the players spent and the market paid out, the money created, the biggest net earners and the items that paid out the most | `lodestock.admin.economy` |
 | `/lodestock reload` | Reload all config files and show any problems found | `lodestock.admin.reload` |
 
 `crash` and `surge` announce themselves to the whole server unless you set `admin.broadcast: false`. Admin actions are recorded in the database.
@@ -98,7 +101,7 @@ All of these also work from the console.
 | `lodestock.ore.<item>` | everyone | Trade that item, for example `lodestock.ore.diamond`. Created automatically for every item in `items.yml` |
 | `lodestock.ore.*` | everyone | Trade every item |
 | `lodestock.limit.bypass` | op | Not affected by daily limits |
-| `lodestock.admin.reload`, `.setprice`, `.setstock`, `.reset`, `.crash`, `.surge`, `.stats`, `.history` | op | One per admin command |
+| `lodestock.admin.reload`, `.setprice`, `.setstock`, `.reset`, `.crash`, `.surge`, `.stats`, `.history`, `.audit`, `.economy` | op | One per admin command |
 | `lodestock.admin.*` | op | All admin permissions |
 
 Each selling method has its own permission, so you can, for example, allow the window but not `sellall` for new players (with a permissions plugin such as LuckPerms).
@@ -106,6 +109,16 @@ Each selling method has its own permission, so you can, for example, allow the w
 ### Per-item permissions
 
 Every item in `items.yml` gets its own permission automatically, `lodestock.ore.<item>` (for example `lodestock.ore.diamond` or `lodestock.ore.raw_iron`). **Everyone has all of them by default**, so nothing changes until you take one away. To lock an item, set its permission to `false` for a group or player in your permissions plugin, or set `lodestock.ore.*` to `false` and give back only the items you want. Locked items are shown greyed out in the window, and can't be bought or sold. The permissions are created when the server starts and on `/lodestock reload`, so a new item is covered straight away.
+
+## Protecting your economy
+
+A stock market plugin pays out money that did not exist before, so careless settings can wreck a server's economy. Lodestock gives you the tools to avoid that, and the [economy guide](docs/ECONOMY.md) explains how to use them:
+
+- Ready-to-copy `items.yml` presets for a [conservative](docs/presets/items-conservative.yml), [balanced](docs/presets/items-balanced.yml) or [generous](docs/presets/items-generous.yml) economy, with the matching `config.yml` lines.
+- How economies break (endless item sources, buy-and-sell loops, crafting loops, other money sources, alt accounts) and the setting that fixes each.
+- `/lodestock audit` to check your setup after every change, and `/lodestock economy` to watch how much money the market creates.
+
+Lodestock only sets the tools. The prices, taxes and limits are yours, and so is how they play out on your server.
 
 ## Configuration
 
@@ -126,7 +139,7 @@ Everything lives in `plugins/Lodestock/`:
 | `language` | `en` | Which `lang/<name>.yml` to use. Missing messages fall back to English |
 | `tax-percent` | `10.0` | Percent taken off the price when a player **sells** |
 | `multiplier` | `0.01` | How much each trade moves the price (0.01 is about 1%) |
-| `price-floor` | `0.01` | Prices never fall below this |
+| `price-floor` | `0.25` | Prices never fall below this. Keep it at about 5 to 10 percent of your cheapest item |
 | `gui.bulk-amount` | `16` | How many items shift + left-click buys (2 to 64) |
 | `gui.refresh-ticks` | `20` | How often (in ticks, 20 = one second) open windows check for changes. Only changed icons are redrawn, and nothing happens when nothing changed. 0 = windows only update when their player clicks |
 | `sell-all.confirm` | `true` | Require `/lodestock sellall confirm` |
@@ -148,7 +161,7 @@ Everything lives in `plugins/Lodestock/`:
 | `admin.broadcast` | `true` | Announce crash and surge to everyone |
 | `history.keep-days` | `30` | Delete trade history older than this at startup (0 keeps everything) |
 
-**Keep `tax-percent` high enough for your `multiplier`.** If tax is too low, players can make money by buying and selling the same item in a loop. Lodestock warns you in the console and on `/lodestock reload` when it detects this.
+**Keep `tax-percent` high enough for your `multiplier`.** If tax is too low, players can make money by buying and selling the same item in a loop, and big stacks make it worse than single items. Lodestock warns you in the console and on `/lodestock reload`, and `/lodestock audit` shows the details. The [economy guide](docs/ECONOMY.md) has the lowest safe tax for each multiplier.
 
 ### items.yml
 

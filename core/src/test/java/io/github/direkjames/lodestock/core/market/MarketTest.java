@@ -59,6 +59,12 @@ class MarketTest {
     }
 
     @Test
+    void sellingFirstAndBuyingBackCountsAsALoopToo() {
+        // Buy-then-sell loses money at 5% tax and a 5.5% multiplier, but sell-then-buy-back does not.
+        assertTrue(new MarketSettings(5.0, 0.055, 0.01).hasBuySellLoop());
+    }
+
+    @Test
     void bulkBuyIsLimitedByStockAndPricesEachItem() {
         Market m = market(new InMemoryMarketStorage());
         BulkQuote q = m.previewBuy("diamond", 5);

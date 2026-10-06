@@ -1,5 +1,6 @@
 package io.github.direkjames.lodestock.paper.command;
 
+import io.github.direkjames.lodestock.core.audit.EconomyAudit;
 import io.github.direkjames.lodestock.core.market.ItemState;
 import io.github.direkjames.lodestock.core.market.Market;
 import io.github.direkjames.lodestock.core.market.MarketItem;
@@ -7,6 +8,7 @@ import io.github.direkjames.lodestock.core.market.Quote;
 import io.github.direkjames.lodestock.paper.LodestockPlugin;
 import io.github.direkjames.lodestock.paper.config.Messages;
 import io.github.direkjames.lodestock.paper.log.TradeLog;
+import io.github.direkjames.lodestock.paper.util.HourSpan;
 import io.github.direkjames.lodestock.paper.util.ItemNames;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
@@ -24,16 +26,19 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public final class LodestockCommand implements TabExecutor {
     private static final int MAX_WARNINGS_SHOWN = 10;
     private static final int HISTORY_PAGE_SIZE = 8;
+    private static final int MAX_AUDIT_LINES = 12;
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.systemDefault());
     private static final DecimalFormat PERCENT = new DecimalFormat("0.#", DecimalFormatSymbols.getInstance(Locale.ROOT));
     private static final List<String> ADMIN_COMMANDS =
-            List.of("setprice", "setstock", "reset", "crash", "surge", "stats", "history", "reload");
+            List.of("setprice", "setstock", "reset", "crash", "surge", "stats", "history", "audit", "economy", "reload");
 
     private final LodestockPlugin plugin;
 
@@ -61,6 +66,8 @@ public final class LodestockCommand implements TabExecutor {
             case "surge" -> adjust(sender, args, false);
             case "stats" -> stats(sender);
             case "history" -> history(sender, args);
+            case "audit" -> audit(sender);
+            case "economy" -> economy(sender, args);
             case "reload" -> reload(sender);
             default -> msg.send(sender, "unknown-subcommand");
         }
@@ -375,6 +382,125 @@ public final class LodestockCommand implements TabExecutor {
         }
     }
 
+    private void audit(CommandSender sender) {
+        Messages msg = plugin.messages();
+        if (!allowed(sender, "lodestock.admin.audit")) return;
+        Market market = plugin.market();
+        Map<String, Double> live = new HashMap<>();
+        for (MarketItem item : market.items()) {
+            market.state(item.id()).ifPresent(state -> live.put(item.id(), state.price()));
+        }
+        var limits = plugin.limits().settings();
+        EconomyAudit.Report report = EconomyAudit.run(market.settings(), market.recovery(),
+                limits.dailyBuy(), limits.dailySell(), market.items(), live);
+
+        long warns = report.count(EconomyAudit.Level.WARN);
+        long notes = report.count(EconomyAudit.Level.NOTE);
+        msg.send(sender, "audit-header",
+                Placeholder.unparsed("warnings", String.valueOf(warns)),
+                Placeholder.unparsed("notes", String.valueOf(notes)));
+        if (warns == 0) msg.send(sender, "audit-ok");
+
+        List<EconomyAudit.Finding> sorted = new ArrayList<>(report.findings());
+        sorted.sort(Comparator.comparing(EconomyAudit.Finding::level)); // warnings first
+        for (int i = 0; i < Math.min(MAX_AUDIT_LINES, sorted.size()); i++) {
+            EconomyAudit.Finding f = sorted.get(i);
+            msg.send(sender, f.level() == EconomyAudit.Level.WARN ? "audit-warn-line" : "audit-note-line",
+                    Placeholder.component("text", auditText(f)));
+        }
+        if (sorted.size() > MAX_AUDIT_LINES) {
+            msg.send(sender, "audit-more", Placeholder.unparsed("more", String.valueOf(sorted.size() - MAX_AUDIT_LINES)));
+        }
+
+        if (!report.ceilings().isEmpty()) {
+            msg.send(sender, "audit-ceiling", Placeholder.unparsed("total", plugin.economy().format(report.totalCeiling())));
+            report.ceilings().stream().limit(3).forEach(c -> msg.send(sender, "audit-ceiling-line",
+                    Placeholder.unparsed("item", ItemNames.pretty(c.item())),
+                    Placeholder.unparsed("money", plugin.economy().format(c.perDay()))));
+        }
+        msg.send(sender, "audit-footer");
+    }
+
+    /** Turns one finding into its sentence from the language file (audit.<code>). */
+    private net.kyori.adventure.text.Component auditText(EconomyAudit.Finding f) {
+        List<String> a = f.args();
+        var eco = plugin.economy();
+        List<TagResolver> tags = new ArrayList<>();
+        switch (f.code()) {
+            case "tax-low" -> tags.add(Placeholder.unparsed("tax", a.get(0)));
+            case "multiplier-high" -> tags.add(Placeholder.unparsed("value", a.get(0)));
+            case "floor-low" -> {
+                tags.add(Placeholder.unparsed("floor", a.get(0)));
+                tags.add(Placeholder.unparsed("cheapest", a.get(1)));
+            }
+            case "round-trip" -> {
+                tags.add(Placeholder.unparsed("item", ItemNames.pretty(a.get(0))));
+                tags.add(Placeholder.unparsed("way", plugin.messages().plain("audit.way-" + a.get(1))));
+                tags.add(Placeholder.unparsed("amount", a.get(2)));
+                tags.add(Placeholder.unparsed("profit", eco.format(Double.parseDouble(a.get(3)))));
+            }
+            case "crafting-loop", "crafting-loop-now" -> {
+                tags.add(Placeholder.unparsed("from", ItemNames.pretty(a.get(0))));
+                tags.add(Placeholder.unparsed("to", ItemNames.pretty(a.get(1))));
+                tags.add(Placeholder.unparsed("profit", eco.format(Double.parseDouble(a.get(3)))));
+            }
+            default -> { }
+        }
+        return plugin.messages().get("audit." + f.code(), tags.toArray(new TagResolver[0]));
+    }
+
+    private void economy(CommandSender sender, String[] args) {
+        Messages msg = plugin.messages();
+        if (!allowed(sender, "lodestock.admin.economy")) return;
+        String rangeText = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "24h";
+        long hours = HourSpan.parse(rangeText);
+        if (hours <= 0) {
+            msg.send(sender, "usage-economy");
+            return;
+        }
+        long since = System.currentTimeMillis() - hours * 3_600_000L;
+        plugin.tradeLog().summaryAsync(since, 5).thenAccept(summary ->
+                plugin.getServer().getScheduler().runTask(plugin, () -> showEconomy(sender, rangeText, summary)));
+    }
+
+    private void showEconomy(CommandSender sender, String range, TradeLog.Summary summary) {
+        Messages msg = plugin.messages();
+        var eco = plugin.economy();
+        TagResolver rangeTag = Placeholder.unparsed("range", range);
+        if (summary.trades() == 0) {
+            msg.send(sender, "economy-none", rangeTag);
+            return;
+        }
+        msg.send(sender, "economy-header", rangeTag);
+        msg.send(sender, "economy-totals",
+                Placeholder.unparsed("trades", String.valueOf(summary.trades())),
+                Placeholder.unparsed("players", String.valueOf(summary.players())));
+        msg.send(sender, "economy-flow",
+                Placeholder.unparsed("in", eco.format(summary.paidIn())),
+                Placeholder.unparsed("out", eco.format(summary.paidOut())));
+        double created = summary.created();
+        msg.send(sender, created >= 0 ? "economy-net-up" : "economy-net-down",
+                Placeholder.unparsed("net", eco.format(Math.abs(created))));
+        if (!summary.topEarners().isEmpty()) {
+            msg.send(sender, "economy-top-header");
+            int rank = 1;
+            for (TradeLog.PlayerNet p : summary.topEarners()) {
+                msg.send(sender, p.net() >= 0 ? "economy-top-up" : "economy-top-down",
+                        Placeholder.unparsed("rank", String.valueOf(rank++)),
+                        Placeholder.unparsed("player", p.player()),
+                        Placeholder.unparsed("net", eco.format(Math.abs(p.net()))));
+            }
+        }
+        if (!summary.topItems().isEmpty()) {
+            msg.send(sender, "economy-items-header");
+            for (TradeLog.ItemPayout i : summary.topItems().stream().limit(3).toList()) {
+                msg.send(sender, "economy-items-line",
+                        Placeholder.unparsed("item", ItemNames.pretty(i.item())),
+                        Placeholder.unparsed("money", eco.format(i.paidOut())));
+            }
+        }
+    }
+
     private void reload(CommandSender sender) {
         Messages msg = plugin.messages();
         if (!allowed(sender, "lodestock.admin.reload")) return;
@@ -456,6 +582,7 @@ public final class LodestockCommand implements TabExecutor {
             }
             if (sub.equals("crash") || sub.equals("surge")) return filter(List.of("10", "25", "50"), typed);
             if (sub.equals("sellall")) return filter(List.of("confirm"), typed);
+            if (sub.equals("economy")) return filter(List.of("24h", "7d", "30d"), typed);
             if (sub.equals("history")) {
                 return filter(plugin.getServer().getOnlinePlayers().stream().map(Player::getName).toList(), typed);
             }

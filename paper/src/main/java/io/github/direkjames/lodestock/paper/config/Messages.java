@@ -60,6 +60,11 @@ public final class Messages {
                 .build();
     }
 
+    /** A message as plain text, with no formatting. For words dropped into other messages. */
+    public String plain(String key) {
+        return raw(key);
+    }
+
     public Component get(String key, TagResolver... extra) {
         return MM.deserialize(raw(key), resolvers(extra));
     }

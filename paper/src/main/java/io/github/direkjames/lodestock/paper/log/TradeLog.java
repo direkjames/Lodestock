@@ -14,6 +14,23 @@ import java.util.concurrent.CompletableFuture;
 public final class TradeLog {
     public record Entry(long time, String player, String action, String item, int amount, double money) {}
 
+    /** What one player took out of (or put into) the economy: payouts minus purchases. */
+    public record PlayerNet(String player, double net) {}
+
+    /** Money the market paid out for one item. */
+    public record ItemPayout(String item, double paidOut) {}
+
+    /**
+     * A summary of trades since some time. {@code paidIn} is what players spent buying, {@code paidOut} is
+     * what the market paid them for selling (after tax). Paid out minus paid in is money the market created.
+     */
+    public record Summary(int trades, int players, double paidIn, double paidOut,
+                          List<PlayerNet> topEarners, List<ItemPayout> topItems) {
+        public double created() {
+            return paidOut - paidIn;
+        }
+    }
+
     private final Database db;
 
     public TradeLog(Database db) {
@@ -75,6 +92,52 @@ public final class TradeLog {
             }
             return entries;
         }).exceptionally(error -> List.of());
+    }
+
+    /** Totals, the biggest net earners and the items paid out the most, for trades at or after {@code since}. */
+    public CompletableFuture<Summary> summaryAsync(long since, int top) {
+        return db.<Summary>query(c -> {
+            int trades = 0;
+            int players = 0;
+            double in = 0;
+            double out = 0;
+            try (PreparedStatement ps = c.prepareStatement(
+                    "SELECT COUNT(*), COUNT(DISTINCT player_uuid), "
+                            + "COALESCE(SUM(CASE WHEN action = 'BUY' THEN money END), 0), "
+                            + "COALESCE(SUM(CASE WHEN action = 'SELL' THEN money END), 0) "
+                            + "FROM trades WHERE time >= ?")) {
+                ps.setLong(1, since);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        trades = rs.getInt(1);
+                        players = rs.getInt(2);
+                        in = rs.getDouble(3);
+                        out = rs.getDouble(4);
+                    }
+                }
+            }
+            List<PlayerNet> earners = new ArrayList<>();
+            try (PreparedStatement ps = c.prepareStatement(
+                    "SELECT MAX(player_name), SUM(CASE WHEN action = 'SELL' THEN money ELSE -money END) AS net "
+                            + "FROM trades WHERE time >= ? GROUP BY player_uuid ORDER BY net DESC LIMIT ?")) {
+                ps.setLong(1, since);
+                ps.setInt(2, top);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) earners.add(new PlayerNet(rs.getString(1), rs.getDouble(2)));
+                }
+            }
+            List<ItemPayout> items = new ArrayList<>();
+            try (PreparedStatement ps = c.prepareStatement(
+                    "SELECT item, SUM(money) AS paid FROM trades WHERE time >= ? AND action = 'SELL' "
+                            + "GROUP BY item ORDER BY paid DESC LIMIT ?")) {
+                ps.setLong(1, since);
+                ps.setInt(2, top);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) items.add(new ItemPayout(rs.getString(1), rs.getDouble(2)));
+                }
+            }
+            return new Summary(trades, players, in, out, earners, items);
+        }).exceptionally(error -> new Summary(0, 0, 0, 0, List.of(), List.of()));
     }
 
     /** Deletes lines older than the given number of days. 0 or less keeps everything. */

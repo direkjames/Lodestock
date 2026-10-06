@@ -7,9 +7,15 @@ public record MarketSettings(double taxPercent, double multiplier, double priceF
         if (priceFloor <= 0) throw new IllegalArgumentException("price floor must be above 0");
     }
 
-    /** True if buying then selling the same item makes free money (tax too low for the multiplier). */
+    /**
+     * True if a player can make free money by looping a single item: buying then selling it,
+     * or selling then buying it back. Tax that is too low for the multiplier causes it.
+     * (A quick check on the settings. {@code EconomyAudit} also tests real bulk trades.)
+     */
     public boolean hasBuySellLoop() {
-        double t = taxPercent / 100.0;
-        return (1 - t) * (1 + (1 - t) * multiplier) > 1.0;
+        double keep = 1 - taxPercent / 100.0;
+        boolean buyFirst = keep * (1 + keep * multiplier) > 1.0;
+        boolean sellFirst = keep * multiplier > taxPercent / 100.0;
+        return buyFirst || sellFirst;
     }
 }

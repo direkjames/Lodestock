@@ -12,6 +12,13 @@ All notable changes to Lodestock are listed here. Lodestock uses [semantic versi
 - New permission `lodestock.chart` (everyone by default).
 - New `price-history` settings in `config.yml`.
 
+### Economy safety
+- New guide, [docs/ECONOMY.md](docs/ECONOMY.md), with three ready-to-copy price presets (conservative, balanced, generous) in `docs/presets/`, the config lines that go with them, and advice by game mode.
+- New `/lodestock audit` command (`lodestock.admin.audit`): checks for buy-and-sell loops (tested with real trades of many sizes, up to each item's max stock), crafting loops (ingot and block, raw ore and ingot, and similar pairs), a zero or very low tax, a very high multiplier, a very low price floor, and recovery with no daily limits. It also estimates the most money the market can pay out per day.
+- New `/lodestock economy [24h|7d|30d]` command (`lodestock.admin.economy`): money spent and paid out, money created, the biggest net earners and the items that paid out the most.
+- The "tax too low" warning on startup and reload is now the economy audit, so it also catches a high multiplier that is exploitable with big stacks even when single trades lose money, and selling then buying back.
+- The default `price-floor` in a new `config.yml` is now `0.25` (was `0.01`), so an item cannot crash to almost nothing. Existing config files are not changed.
+
 ### Storage
 - The database file is upgraded automatically (schema version 4, adds the price history table).
 
@@ -24,6 +31,8 @@ price-history:
   interval-minutes: 10   # minutes between samples
   keep-days: 14          # delete samples older than this (0 = keep everything)
 ```
+
+The new commands and warnings work with no config changes. If you want the safer defaults, raise `price-floor` to about 5 to 10 percent of your cheapest item (the audit tells you when it is too low). The wording of the audit and economy messages falls back to built-in English text.
 
 The "Trend (24h)" line and the "Press Q to open the price chart" hint are added by the plugin itself, so they show up even with an older `lang/en.yml`. To change their wording, copy `item-trend` and `item-chart-hint` from the bundled `lang/en.yml` into the `gui:` section of yours.
 
