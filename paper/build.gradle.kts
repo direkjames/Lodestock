@@ -17,6 +17,7 @@ repositories {
 
 dependencies {
     implementation(project(":core"))
+    implementation(project(":api")) // shaded into the jar, so other plugins can use it by depending on Lodestock
 
     // Compile against the OLDEST supported version, so we can't use an API that 1.21.11 lacks.
     compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")

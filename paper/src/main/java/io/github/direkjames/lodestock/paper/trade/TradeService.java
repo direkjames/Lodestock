@@ -1,5 +1,8 @@
 package io.github.direkjames.lodestock.paper.trade;
 
+import io.github.direkjames.lodestock.api.TradeType;
+import io.github.direkjames.lodestock.api.event.LodestockPreTradeEvent;
+import io.github.direkjames.lodestock.api.event.LodestockTradeEvent;
 import io.github.direkjames.lodestock.core.market.BulkQuote;
 import io.github.direkjames.lodestock.core.market.Market;
 import io.github.direkjames.lodestock.core.market.MarketItem;
@@ -83,6 +86,7 @@ public final class TradeService {
             msg.send(player, "not-enough-money", Placeholder.unparsed("money", eco.format(quote.total())));
             return;
         }
+        if (!allowTrade(player, TradeType.BUY, itemId, count, quote.total())) return;
         if (!eco.withdraw(player, quote.total())) {
             msg.send(player, "transaction-failed");
             return;
@@ -94,6 +98,7 @@ public final class TradeService {
         market.recordBuy(itemId, count);
         plugin.limits().recordBuy(player, item, count);
         plugin.tradeLog().trade(player, "BUY", itemId, count, quote.total());
+        announce(player, TradeType.BUY, itemId, count, quote.total());
 
         msg.send(player, "buy-success",
                 Placeholder.unparsed("amount", String.valueOf(count)),
@@ -149,6 +154,8 @@ public final class TradeService {
         }
         int count = quote.count();
 
+        if (!allowTrade(player, TradeType.SELL, itemId, count, quote.total())) return;
+
         // Take the items first, pay second. If the payment is refused (e.g. money cap), give them back.
         if (!removeItems(player, material, count)) {
             msg.send(player, "no-items", Placeholder.unparsed("item", ItemNames.pretty(itemId)));
@@ -163,6 +170,7 @@ public final class TradeService {
         market.recordSell(itemId, count);
         plugin.limits().recordSell(player, item, count);
         plugin.tradeLog().trade(player, "SELL", itemId, count, quote.total());
+        announce(player, TradeType.SELL, itemId, count, quote.total());
 
         msg.send(player, "sell-success",
                 Placeholder.unparsed("amount", String.valueOf(count)),
@@ -218,6 +226,8 @@ public final class TradeService {
         }
         int count = quote.count();
 
+        if (!allowTrade(player, TradeType.SELL, id, count, quote.total())) return;
+
         // Pay first. If the payment is refused (e.g. money cap), nothing is taken.
         if (!eco.deposit(player, quote.total())) {
             msg.send(player, "transaction-failed");
@@ -233,6 +243,7 @@ public final class TradeService {
         market.recordSell(id, count);
         plugin.limits().recordSell(player, item, count);
         plugin.tradeLog().trade(player, "SELL", id, count, quote.total());
+        announce(player, TradeType.SELL, id, count, quote.total());
 
         msg.send(player, "sell-success",
                 Placeholder.unparsed("amount", String.valueOf(count)),
@@ -300,6 +311,11 @@ public final class TradeService {
             msg.send(player, "sellall-nothing");
             return;
         }
+        // Other plugins may veto single items; the rest still sells.
+        plan = withoutCancelled(player, plan);
+        if (plan.entries().isEmpty()) {
+            return;
+        }
         // One payment for everything. If it is refused, nothing is taken.
         if (!eco.deposit(player, plan.total())) {
             msg.send(player, "transaction-failed");
@@ -311,6 +327,7 @@ public final class TradeService {
             plugin.market().recordSell(entry.id(), entry.count());
             plugin.limits().recordSell(player, plugin.market().item(entry.id()).orElseThrow(), entry.count());
             plugin.tradeLog().trade(player, "SELL", entry.id(), entry.count(), entry.total());
+            announce(player, TradeType.SELL, entry.id(), entry.count(), entry.total());
         }
 
         int cooldown = plugin.getConfig().getInt("sell-all.cooldown-seconds", 30);
@@ -334,6 +351,49 @@ public final class TradeService {
     }
 
     /** Works out what a sellall would do right now. Only the hotbar and main inventory count. */
+    /** Asks other plugins whether a trade may go ahead. Tells the player if one says no. */
+    private boolean allowTrade(Player player, TradeType type, String itemId, int count, double total) {
+        LodestockPreTradeEvent event = new LodestockPreTradeEvent(player, type, itemId, count, total);
+        plugin.getServer().getPluginManager().callEvent(event);
+        if (!event.isCancelled()) return true;
+        if (event.getCancelMessage() != null) player.sendMessage(event.getCancelMessage());
+        else plugin.messages().send(player, "trade-cancelled");
+        return false;
+    }
+
+    /** Tells other plugins a trade went through. */
+    private void announce(Player player, TradeType type, String itemId, int count, double total) {
+        var state = plugin.market().state(itemId).orElse(null);
+        double price = state == null ? 0 : state.price();
+        int stock = state == null ? 0 : state.stock();
+        plugin.getServer().getPluginManager().callEvent(new LodestockTradeEvent(player, type, itemId, count, total, price, stock));
+    }
+
+    /** Drops sell-all entries another plugin cancelled and works out the totals again. */
+    private Plan withoutCancelled(Player player, Plan plan) {
+        List<Entry> kept = new ArrayList<>();
+        double total = 0;
+        int items = 0;
+        boolean told = false;
+        for (Entry e : plan.entries()) {
+            LodestockPreTradeEvent event = new LodestockPreTradeEvent(player, TradeType.SELL, e.id(), e.count(), e.total());
+            plugin.getServer().getPluginManager().callEvent(event);
+            if (event.isCancelled()) {
+                if (!told) {
+                    if (event.getCancelMessage() != null) player.sendMessage(event.getCancelMessage());
+                    else plugin.messages().send(player, "trade-cancelled");
+                    told = true;
+                }
+                continue;
+            }
+            kept.add(e);
+            total += e.total();
+            items += e.count();
+        }
+        if (kept.size() == plan.entries().size()) return plan;
+        return new Plan(kept, plan.skipped(), Math.round(total * 100.0) / 100.0, items);
+    }
+
     private Plan plan(Player player) {
         Market market = plugin.market();
         Map<Material, Integer> counts = new LinkedHashMap<>();

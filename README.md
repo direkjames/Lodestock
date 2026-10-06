@@ -15,6 +15,7 @@ Lodestock is a rework of **[OreMarket](https://github.com/OllieJW/Ore-Market) by
 - A fully configurable window: title, rows, item slots, fill item, page buttons, and items pinned to exact slots.
 - Admin tools: set prices and stock, reset, market crash and surge, stats, and a per-player trade history.
 - Leaderboards (`/lodestock top`): top sellers, biggest spenders, most active traders, biggest single trade and net earners, for the last 24 hours, 7 days, 30 days or all time, for every item or one item. PlaceholderAPI placeholders for holograms and scoreboards.
+- A [public API and events](docs/API.md) for other plugins: read prices and stats, react to trades, cancel them, and change the market.
 - Economy safety tools: `/lodestock audit` finds settings that let players make free money, `/lodestock economy` shows how much money the market created, and [a guide with ready-made price presets](docs/ECONOMY.md) for low, balanced and high-income servers.
 - Prices that drift back toward their base price and stock that regenerates, so crashes and surges fade on their own (even while the server is off).
 - Price history: press Q on an item for a bar chart of its price (24 hours, 7 days or all time), with a 24h trend line in each item's description and `/lodestock chart` for chat.

@@ -69,6 +69,8 @@ usage-history: "<prefix><red>Usage: <yellow>/lodestock history <player> [page]"
 invalid-number: "<prefix><red>That isn't a valid number."
 invalid-percent: "<prefix><red>The percent must be a number from 1 to <max>."
 admin-error: "<prefix><red><error>"
+admin-cancelled: "<prefix><red>Another plugin cancelled that change."
+trade-cancelled: "<prefix><red>That trade was cancelled."
 player-not-found: "<prefix><red>No player named <player> has joined this server."
 
 setprice-success: "<prefix><green>The price of <item> is now <yellow><price><green>. <gray>It will not drift until the next trade on this item."

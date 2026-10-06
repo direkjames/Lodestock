@@ -1,3 +1,3 @@
 rootProject.name = "Lodestock"
 
-include("core", "paper")
+include("core", "api", "paper")

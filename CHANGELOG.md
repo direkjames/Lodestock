@@ -27,6 +27,13 @@ All notable changes to Lodestock are listed here. Lodestock uses [semantic versi
 - The "tax too low" warning on startup and reload is now the economy audit, so it also catches a high multiplier that is exploitable with big stacks even when single trades lose money, and selling then buying back.
 - The default `price-floor` in a new `config.yml` is now `0.25` (was `0.01`), so an item cannot crash to almost nothing. Existing config files are not changed.
 
+### Public API
+- New `lodestock-api` module and [docs/API.md](docs/API.md): other plugins can read prices, stock, quotes, price history, player stats and leaderboards, and change prices and stock with a named `source`. Get it with `LodestockApi.find()`; it is also registered with Bukkit's services manager.
+- New events: `LodestockPreTradeEvent` (cancellable), `LodestockTradeEvent` and `LodestockMarketAdjustEvent` (cancellable, for hand-made changes).
+- All admin changes (`setprice`, `setstock`, `reset`, `crash`, `surge`) now go through one place, so the commands and the API behave the same and are logged the same way.
+- New messages `trade-cancelled` and `admin-cancelled`. Existing `lang/en.yml` files are not changed: the built-in text is used until you add them.
+- New `jitpack.yml` so the API can be used from JitPack.
+
 ### Storage
 - The database file is upgraded automatically (schema version 5: adds the price history table and the lifetime stats table).
 

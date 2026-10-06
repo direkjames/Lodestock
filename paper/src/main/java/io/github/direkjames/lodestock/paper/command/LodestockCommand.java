@@ -9,6 +9,7 @@ import io.github.direkjames.lodestock.core.stats.Board;
 import io.github.direkjames.lodestock.core.stats.Period;
 import io.github.direkjames.lodestock.core.stats.Row;
 import io.github.direkjames.lodestock.paper.LodestockPlugin;
+import io.github.direkjames.lodestock.paper.admin.MarketAdmin;
 import io.github.direkjames.lodestock.paper.config.Messages;
 import io.github.direkjames.lodestock.paper.log.TradeLog;
 import io.github.direkjames.lodestock.paper.util.HourSpan;
@@ -279,17 +280,26 @@ public final class LodestockCommand implements TabExecutor {
             msg.send(sender, "invalid-number");
             return;
         }
-        try {
-            plugin.market().setPrice(id, price);
-        } catch (IllegalArgumentException e) {
-            msg.send(sender, "admin-error", Placeholder.unparsed("error", e.getMessage()));
-            return;
-        }
-        plugin.tradeLog().admin(sender.getName(), "SETPRICE", id + " " + price);
-        plugin.menus().refreshOpen();
+        if (!done(sender, () -> plugin.admin().setPrice(sender.getName(), id, price))) return;
         msg.send(sender, "setprice-success",
                 Placeholder.unparsed("item", ItemNames.pretty(id)),
                 Placeholder.unparsed("price", plugin.economy().format(price)));
+    }
+
+    /** Runs a change through MarketAdmin. False (after telling the sender why) if it failed or another plugin cancelled it. */
+    private boolean done(CommandSender sender, java.util.function.Supplier<MarketAdmin.Outcome> change) {
+        Messages msg = plugin.messages();
+        MarketAdmin.Outcome outcome;
+        try {
+            outcome = change.get();
+        } catch (IllegalArgumentException e) {
+            msg.send(sender, "admin-error", Placeholder.unparsed("error", e.getMessage()));
+            return false;
+        }
+        if (outcome.done()) return true;
+        if (outcome.cancelMessage() != null) sender.sendMessage(outcome.cancelMessage());
+        else msg.send(sender, "admin-cancelled");
+        return false;
     }
 
     private void setStock(CommandSender sender, String[] args) {
@@ -308,14 +318,8 @@ public final class LodestockCommand implements TabExecutor {
             msg.send(sender, "invalid-number");
             return;
         }
-        try {
-            plugin.market().setStock(id, stock);
-        } catch (IllegalArgumentException e) {
-            msg.send(sender, "admin-error", Placeholder.unparsed("error", e.getMessage()));
-            return;
-        }
-        plugin.tradeLog().admin(sender.getName(), "SETSTOCK", id + " " + stock);
-        plugin.menus().refreshOpen();
+        final int newStock = stock;
+        if (!done(sender, () -> plugin.admin().setStock(sender.getName(), id, newStock))) return;
         msg.send(sender, "setstock-success",
                 Placeholder.unparsed("item", ItemNames.pretty(id)),
                 Placeholder.unparsed("stock", String.valueOf(stock)));
@@ -333,17 +337,13 @@ public final class LodestockCommand implements TabExecutor {
                 msg.send(sender, "reset-all-confirm");
                 return;
             }
-            plugin.market().resetAll();
-            plugin.tradeLog().admin(sender.getName(), "RESET", "all items");
-            plugin.menus().refreshOpen();
+            if (!done(sender, () -> plugin.admin().resetAll(sender.getName()))) return;
             msg.send(sender, "reset-all-success");
             return;
         }
         String id = knownItem(sender, args[1]);
         if (id == null) return;
-        plugin.market().reset(id);
-        plugin.tradeLog().admin(sender.getName(), "RESET", id);
-        plugin.menus().refreshOpen();
+        if (!done(sender, () -> plugin.admin().reset(sender.getName(), id))) return;
         msg.send(sender, "reset-success", Placeholder.unparsed("item", ItemNames.pretty(id)));
     }
 
@@ -367,10 +367,9 @@ public final class LodestockCommand implements TabExecutor {
             if (id == null) return;
         }
 
-        plugin.market().adjustPrices(id, crash ? -percent : percent);
-        plugin.tradeLog().admin(sender.getName(), crash ? "CRASH" : "SURGE",
-                PERCENT.format(percent) + "% " + (id == null ? "all items" : id));
-        plugin.menus().refreshOpen();
+        final String target = id;
+        final double signed = crash ? -percent : percent;
+        if (!done(sender, () -> plugin.admin().adjust(sender.getName(), target, signed))) return;
 
         String key = (crash ? "crash" : "surge") + "-broadcast" + (id == null ? "" : "-item");
         TagResolver[] tags = {

@@ -1,7 +1,10 @@
 package io.github.direkjames.lodestock.paper;
 
+import io.github.direkjames.lodestock.api.LodestockApi;
 import io.github.direkjames.lodestock.core.market.Market;
 import io.github.direkjames.lodestock.core.stats.LifetimeStats;
+import io.github.direkjames.lodestock.paper.admin.MarketAdmin;
+import io.github.direkjames.lodestock.paper.api.LodestockApiImpl;
 import io.github.direkjames.lodestock.paper.command.LodestockCommand;
 import io.github.direkjames.lodestock.paper.config.ConfigLoader;
 import io.github.direkjames.lodestock.paper.config.ConfigWarnings;
@@ -25,6 +28,7 @@ import io.github.direkjames.lodestock.paper.storage.SqlMarketStorage;
 import io.github.direkjames.lodestock.paper.trade.TradeService;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -48,6 +52,7 @@ public final class LodestockPlugin extends JavaPlugin {
     private Market market;
     private EconomyHook economy;
     private TradeService trades;
+    private MarketAdmin admin;
     private MenuService menus;
     private ChartService charts;
     private GuiLayout layout;
@@ -86,6 +91,7 @@ public final class LodestockPlugin extends JavaPlugin {
         messages = new Messages(this);
         economy = new EconomyHook(this);
         trades = new TradeService(this);
+        admin = new MarketAdmin(this);
         menus = new MenuService(this);
         charts = new ChartService(this);
 
@@ -117,11 +123,13 @@ public final class LodestockPlugin extends JavaPlugin {
         PlaceholderHook.register(this);
 
         new Metrics(this, BSTATS_ID);
+        getServer().getServicesManager().register(LodestockApi.class, new LodestockApiImpl(this), this, ServicePriority.Normal);
         getLogger().info("Lodestock enabled.");
     }
 
     @Override
     public void onDisable() {
+        getServer().getServicesManager().unregisterAll(this);
         PlaceholderHook.unregister();
         if (priceHistory != null) priceHistory.shutdown();
         if (menus != null) menus.stop();
@@ -168,6 +176,7 @@ public final class LodestockPlugin extends JavaPlugin {
     public Messages messages() { return messages; }
     public EconomyHook economy() { return economy; }
     public TradeService trades() { return trades; }
+    public MarketAdmin admin() { return admin; }
     public MenuService menus() { return menus; }
     public ChartService charts() { return charts; }
     public GuiLayout layout() { return layout; }
