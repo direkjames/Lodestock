@@ -200,7 +200,12 @@ Be careful with crash and surge. If you crash only one item of a pair, for examp
 
 **The problem.** If an event is announced before a surge or crash, everybody buys or sells in advance and the event pays them for it.
 
-**The fix.** When scheduled events arrive, keep them small (10 to 25 percent), keep daily limits on, and think about whether you want the warning at all. A surprise event is harder to game.
+**The fix.** Scheduled events (`events.yml`) are off by default. When you turn them on:
+
+- Keep them small, 10 to 25 percent. Lodestock warns you on startup and `/lodestock reload` when an event is bigger than your `tax-percent`, because that is when acting on the warning pays.
+- Keep daily limits on. They cap how much one player can buy cheap during a crash or stock up before a surge.
+- Use a `chance` below 100 and a short `warn-minutes` (or 0) if you want a surprise. Lodestock decides whether an event happens when the warning goes out, so players are only warned about events that really happen.
+- A crash followed by price recovery is a free profit window for anyone who buys during it. Choose items that have `drift` on and plenty of stock, and watch `/lodestock economy` after the first few events.
 
 ## Watching your economy
 

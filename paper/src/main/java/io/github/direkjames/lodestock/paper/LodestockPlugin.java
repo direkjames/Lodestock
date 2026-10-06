@@ -11,6 +11,7 @@ import io.github.direkjames.lodestock.paper.config.ConfigWarnings;
 import io.github.direkjames.lodestock.paper.config.Messages;
 import io.github.direkjames.lodestock.paper.discord.DiscordService;
 import io.github.direkjames.lodestock.paper.economy.EconomyHook;
+import io.github.direkjames.lodestock.paper.events.EventService;
 import io.github.direkjames.lodestock.paper.gui.ChartService;
 import io.github.direkjames.lodestock.paper.gui.GuiLayout;
 import io.github.direkjames.lodestock.paper.gui.GuiLayoutLoader;
@@ -55,6 +56,7 @@ public final class LodestockPlugin extends JavaPlugin {
     private TradeService trades;
     private MarketAdmin admin;
     private DiscordService discord;
+    private EventService events;
     private MenuService menus;
     private ChartService charts;
     private GuiLayout layout;
@@ -66,6 +68,7 @@ public final class LodestockPlugin extends JavaPlugin {
         saveIfMissing("items.yml");
         saveIfMissing("gui.yml");
         saveIfMissing("discord.yml");
+        saveIfMissing("events.yml");
         saveIfMissing("lang/en.yml");
 
         try {
@@ -96,6 +99,7 @@ public final class LodestockPlugin extends JavaPlugin {
         trades = new TradeService(this);
         admin = new MarketAdmin(this);
         discord = new DiscordService(this);
+        events = new EventService(this);
         menus = new MenuService(this);
         charts = new ChartService(this);
 
@@ -136,6 +140,7 @@ public final class LodestockPlugin extends JavaPlugin {
     public void onDisable() {
         getServer().getServicesManager().unregisterAll(this);
         PlaceholderHook.unregister();
+        if (events != null) events.shutdown();
         if (discord != null) discord.shutdown();
         if (priceHistory != null) priceHistory.shutdown();
         if (menus != null) menus.stop();
@@ -162,6 +167,7 @@ public final class LodestockPlugin extends JavaPlugin {
             limits.configure(loaded.limits());
             priceHistory.configure(loaded.history());
             orePermissions.sync(loaded.items());
+            events.reload(found);
             warnings = List.copyOf(found);
             getLogger().info("Loaded " + loaded.items().size() + " market items.");
 
@@ -185,6 +191,7 @@ public final class LodestockPlugin extends JavaPlugin {
     public TradeService trades() { return trades; }
     public MarketAdmin admin() { return admin; }
     public DiscordService discord() { return discord; }
+    public EventService events() { return events; }
     public MenuService menus() { return menus; }
     public ChartService charts() { return charts; }
     public GuiLayout layout() { return layout; }

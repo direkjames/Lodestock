@@ -1,0 +1,58 @@
+# Lodestock - scheduled market events
+#
+# A scheduled event is a crash (prices fall) or a surge (prices rise) that happens by itself at the times
+# you choose. Players get a warning first (you choose how long before), and everything is written to the
+# admin log and, if you use it, the Discord webhook.
+#
+# It is OFF until you set enabled: true. After changing this file, run /lodestock reload.
+# /lodestock events        shows every event and when it runs next
+# /lodestock events run <id>   runs one event right now (no warning, no chance roll)
+#
+# PLEASE READ: events can be gamed. If players know a crash is coming, they wait, buy cheap after it and
+# sell when prices recover. If they know a surge is coming, they stock up first. Keep events small
+# (10 to 25 percent), keep the daily limits on, and use a low chance and/or a short warning if you want it
+# to be a surprise. A percent above your tax-percent makes this profitable, and Lodestock warns you about it.
+# See docs/ECONOMY.md ("Warnings before events").
+
+enabled: false
+
+# Time zone for "times" and "days", such as "Asia/Manila" or "America/New_York".
+# Empty uses the server's time zone.
+timezone: ""
+
+# Tell everyone on the server (the warning and the start). Set false to keep events silent.
+broadcast: true
+
+# Each event has an id (the key) and these settings:
+#   name          shown to players and in logs (optional, default is the id)
+#   type          crash or surge (required)
+#   percent       how big: 1 to 99 for a crash, 1 to 1000 for a surge (required)
+#   items         "all", or a list of item ids from items.yml (optional, default all)
+#   times         times of day it happens, in quotes, 24-hour clock, e.g. ["18:00", "21:30"]
+#                 (with no times, the event only runs when you use /lodestock events run)
+#   days          days of the week, e.g. [FRIDAY, SATURDAY] (optional, default every day)
+#   chance        0 to 100: how likely it really happens each time it is due (optional, default 100)
+#   warn-minutes  how many minutes before it starts players are warned, 0 = no warning (optional, default 5)
+#   enabled       false to switch off just this event (optional)
+# Whether an event happens is decided when the warning goes out, so players are only warned about events
+# that really happen. An event that was due more than 2 minutes ago (the server was off) is skipped.
+events:
+  ore-rush:
+    name: "Ore Rush"
+    type: surge
+    percent: 20
+    items: [coal, copper_ingot, iron_ingot]
+    times: ["18:00"]
+    days: [FRIDAY, SATURDAY]
+    chance: 100
+    warn-minutes: 5
+
+  mining-slump:
+    name: "Mining Slump"
+    type: crash
+    percent: 15
+    items: all
+    times: ["20:00"]
+    days: [SUNDAY]
+    chance: 50
+    warn-minutes: 5

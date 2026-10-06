@@ -40,6 +40,14 @@ All notable changes to Lodestock are listed here. Lodestock uses [semantic versi
 - Only real Discord webhook addresses are accepted, the address is never logged, mentions are switched off, and sending happens in the background with Discord's rate limits respected.
 - `discord.yml` is created on the first start of this version. New messages `discord-*` and `usage-discord` use the built-in text until you add them to your `lang/en.yml`.
 
+### Scheduled events
+- New `events.yml` (off by default): crashes and surges that run by themselves at times and days you choose, for all items or a list, with a chance, a warning before they start (`warn-minutes`) and a time zone. Two sample events are included. See the README.
+- Whether an event happens is decided when the warning goes out, so players are only warned about events that really happen. Events that were due more than 2 minutes ago are skipped.
+- New `/lodestock events` (shows every event and when it runs next) and `/lodestock events run <id>` (runs one now) commands (`lodestock.admin.events`, operators by default).
+- Events are logged, shown in the Discord webhook and cancellable through the API like any other hand-made change. An event on several items is one log entry.
+- Startup and `/lodestock reload` warn about events that are bigger than your tax, and about mistakes in `events.yml`. One bad event never stops the others.
+- `events.yml` is created on the first start of this version, with scheduling off. The new `event-*` and `events-*` messages use the built-in text until you add them to your `lang/en.yml`.
+
 ### Storage
 - The database file is upgraded automatically (schema version 5: adds the price history table and the lifetime stats table).
 

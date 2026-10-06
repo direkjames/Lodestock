@@ -15,6 +15,7 @@ Lodestock is a rework of **[OreMarket](https://github.com/OllieJW/Ore-Market) by
 - A fully configurable window: title, rows, item slots, fill item, page buttons, and items pinned to exact slots.
 - Admin tools: set prices and stock, reset, market crash and surge, stats, and a per-player trade history.
 - Leaderboards (`/lodestock top`): top sellers, biggest spenders, most active traders, biggest single trade and net earners, for the last 24 hours, 7 days, 30 days or all time, for every item or one item. PlaceholderAPI placeholders for holograms and scoreboards.
+- Scheduled crash and surge events (optional): warn first, run on a schedule with a chance, and run by hand for testing. See [Scheduled events](#scheduled-events).
 - Discord webhook messages (optional) for big trades, admin changes and a daily summary. See [Discord](#discord).
 - A [public API and events](docs/API.md) for other plugins: read prices and stats, react to trades, cancel them, and change the market.
 - Economy safety tools: `/lodestock audit` finds settings that let players make free money, `/lodestock economy` shows how much money the market created, and [a guide with ready-made price presets](docs/ECONOMY.md) for low, balanced and high-income servers.
@@ -190,6 +191,21 @@ Other settings in `discord.yml`: `big-trades.min-total` (the smallest trade, in 
 - Treat the webhook address like a password. Anyone with it can post in your channel. Lodestock only accepts real `discord.com` webhook addresses, never prints the address in the console, and switches mentions off, so a player name can't ping `@everyone`.
 - Messages are sent in the background. If Discord is slow or down, the server is not affected, and the console shows at most one warning a minute.
 - `discord.yml` is created on the first start of this version, with the webhook off.
+
+## Scheduled events
+
+Lodestock can crash or surge prices by itself on a schedule, for a bit of life in the market. It is off by default.
+
+1. Open `plugins/Lodestock/events.yml` and set `enabled: true`.
+2. Edit the two sample events or add your own. Each one has a `type` (`crash` or `surge`), a `percent`, the `items` it affects (or `all`), the `times` and `days` it happens, a `chance`, and `warn-minutes`.
+3. Run `/lodestock reload`, then `/lodestock events` to see each event and when it runs next.
+
+- Players are warned `warn-minutes` before an event starts and told when it does. Whether an event happens is decided when the warning goes out, so players are only warned about real events. An event that was due more than 2 minutes ago (the server was off) is skipped.
+- `/lodestock events run <id>` runs an event now, without a warning or a chance roll. It works even when scheduling is off, which makes it handy for testing.
+- Events go through the same path as `/lodestock crash` and `surge`: they are written to the admin log, sent to the Discord webhook (the "By" field reads `Event: <name>`) and can be cancelled by other plugins through the API.
+- Put times in quotes, like `"18:00"`. Without quotes YAML reads it as a number.
+- Events can be gamed when players know what is coming. Keep them small and read "Warnings before events" in the [economy guide](docs/ECONOMY.md).
+- Permission: `lodestock.admin.events` (operators by default).
 
 ## Protecting your economy
 

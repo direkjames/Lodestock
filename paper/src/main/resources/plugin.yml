@@ -10,7 +10,7 @@ softdepend: [ Essentials, PlaceholderAPI ]
 commands:
   lodestock:
     description: Lodestock market commands
-    usage: /<command> [help|open|price|limits|chart|sellhand|sellall|setprice|setstock|reset|crash|surge|stats|history|audit|economy|top|discord|reload]
+    usage: /<command> [help|open|price|limits|chart|sellhand|sellall|setprice|setstock|reset|crash|surge|stats|history|audit|economy|top|discord|events|reload]
     aliases: [market, openmarket]
 
 permissions:
@@ -73,6 +73,9 @@ permissions:
   lodestock.admin.discord:
     description: Test the Discord webhook
     default: op
+  lodestock.admin.events:
+    description: See and run scheduled market events
+    default: op
   lodestock.admin.*:
     description: All admin permissions
     default: op
@@ -88,3 +91,4 @@ permissions:
       lodestock.admin.audit: true
       lodestock.admin.economy: true
       lodestock.admin.discord: true
+      lodestock.admin.events: true

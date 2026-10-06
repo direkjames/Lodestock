@@ -95,6 +95,31 @@ public final class MarketAdmin {
         return outcome;
     }
 
+    /**
+     * Same as {@link #adjust} for a list of items, written to the log as one change. Items another plugin
+     * cancels are left out; the result is done if at least one item changed.
+     * @throws IllegalArgumentException if an item is unknown or the percent is -100 or lower
+     */
+    public Outcome adjustItems(String source, java.util.Collection<String> ids, double percent) {
+        Market market = plugin.market();
+        for (String id : ids) requireItem(market, id);
+        if (ids.isEmpty()) throw new IllegalArgumentException("no items given");
+        if (!Double.isFinite(percent) || percent <= -100) {
+            throw new IllegalArgumentException("percent must be above -100");
+        }
+        java.util.List<String> allowed = new java.util.ArrayList<>();
+        Component message = null;
+        for (String id : ids) {
+            Outcome outcome = ask(AdjustType.PERCENT_CHANGE, id, percent, source);
+            if (outcome.done()) allowed.add(id);
+            else message = outcome.cancelMessage();
+        }
+        if (allowed.isEmpty()) return new Outcome(false, message);
+        for (String id : allowed) market.adjustPrices(id, percent);
+        applied(source, percent < 0 ? "CRASH" : "SURGE", PERCENT.format(Math.abs(percent)) + "% " + String.join(", ", allowed));
+        return Outcome.DONE;
+    }
+
     private static io.github.direkjames.lodestock.core.market.MarketItem requireItem(Market market, String id) {
         return market.item(id).orElseThrow(() -> new IllegalArgumentException("unknown item: " + id));
     }

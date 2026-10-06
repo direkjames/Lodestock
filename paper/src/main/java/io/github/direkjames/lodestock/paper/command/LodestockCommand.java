@@ -43,7 +43,7 @@ public final class LodestockCommand implements TabExecutor {
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.systemDefault());
     private static final DecimalFormat PERCENT = new DecimalFormat("0.#", DecimalFormatSymbols.getInstance(Locale.ROOT));
     private static final List<String> ADMIN_COMMANDS =
-            List.of("setprice", "setstock", "reset", "crash", "surge", "stats", "history", "audit", "economy", "discord", "reload");
+            List.of("setprice", "setstock", "reset", "crash", "surge", "stats", "history", "audit", "economy", "discord", "events", "reload");
 
     private final LodestockPlugin plugin;
 
@@ -75,6 +75,7 @@ public final class LodestockCommand implements TabExecutor {
             case "audit" -> audit(sender);
             case "economy" -> economy(sender, args);
             case "discord" -> discord(sender, args);
+            case "events" -> events(sender, args);
             case "reload" -> reload(sender);
             default -> msg.send(sender, "unknown-subcommand");
         }
@@ -626,6 +627,43 @@ public final class LodestockCommand implements TabExecutor {
         }));
     }
 
+    private void events(CommandSender sender, String[] args) {
+        Messages msg = plugin.messages();
+        if (!allowed(sender, "lodestock.admin.events")) return;
+        var events = plugin.events();
+        if (args.length >= 2) {
+            if (!args[1].equalsIgnoreCase("run") || args.length < 3) {
+                msg.send(sender, "usage-events");
+                return;
+            }
+            String id = args[2].toLowerCase(Locale.ROOT);
+            switch (events.run(id)) {
+                case UNKNOWN -> msg.send(sender, "event-unknown", Placeholder.unparsed("id", id));
+                case FAILED -> msg.send(sender, "event-run-failed");
+                case DONE -> msg.send(sender, "event-ran", Placeholder.unparsed("name", events.find(id).orElseThrow().name()));
+            }
+            return;
+        }
+        msg.send(sender, "events-header", Placeholder.unparsed("state", events.enabled() ? "on" : "off"),
+                Placeholder.unparsed("zone", events.zone().getId()));
+        if (!events.enabled()) msg.send(sender, "events-off");
+        var lines = events.list();
+        if (lines.isEmpty()) {
+            msg.send(sender, "events-none");
+            return;
+        }
+        for (var line : lines) {
+            var e = line.event();
+            msg.send(sender, "events-line",
+                    Placeholder.unparsed("id", e.id()),
+                    Placeholder.unparsed("type", e.type().name().toLowerCase(Locale.ROOT)),
+                    Placeholder.unparsed("percent", PERCENT.format(e.percent())),
+                    Placeholder.unparsed("items", e.allItems() ? "all items" : String.join(", ", e.items())),
+                    Placeholder.unparsed("chance", PERCENT.format(e.chance())),
+                    Placeholder.unparsed("next", line.next()));
+        }
+    }
+
     private void reload(CommandSender sender) {
         Messages msg = plugin.messages();
         if (!allowed(sender, "lodestock.admin.reload")) return;
@@ -710,6 +748,7 @@ public final class LodestockCommand implements TabExecutor {
             if (sub.equals("sellall")) return filter(List.of("confirm"), typed);
             if (sub.equals("economy")) return filter(List.of("24h", "7d", "30d"), typed);
             if (sub.equals("discord")) return filter(List.of("test", "summary"), typed);
+            if (sub.equals("events")) return filter(List.of("run"), typed);
             if (sub.equals("top") && sender.hasPermission("lodestock.top")) {
                 return filter(Arrays.stream(Board.values()).filter(b -> canSeeBoard(sender, b)).map(Board::key).toList(), typed);
             }
@@ -725,6 +764,7 @@ public final class LodestockCommand implements TabExecutor {
         if (args.length == 3) {
             if (sub.equals("chart")) return filter(List.of("24h", "7d", "all"), typed);
             if (sub.equals("crash") || sub.equals("surge")) return itemIds(typed);
+            if (sub.equals("events") && args[1].equalsIgnoreCase("run")) return filter(plugin.events().ids(), typed);
             if (sub.equals("reset") && args[1].equalsIgnoreCase("all")) return filter(List.of("confirm"), typed);
         }
         return List.of();
