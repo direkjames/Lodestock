@@ -76,6 +76,7 @@ public final class LodestockPlugin extends JavaPlugin {
         limits.start();
         recovery = new RecoveryTask(this, database);
         recovery.start();
+        menus.start();
 
         PluginCommand command = Objects.requireNonNull(getCommand("lodestock"));
         LodestockCommand handler = new LodestockCommand(this);
@@ -97,6 +98,7 @@ public final class LodestockPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (menus != null) menus.stop();
         if (recovery != null) recovery.stop();
         orePermissions.clear();
         if (market != null) market.flush();
@@ -122,6 +124,7 @@ public final class LodestockPlugin extends JavaPlugin {
             getLogger().info("Loaded " + loaded.items().size() + " market items.");
 
             if (recovery != null) recovery.reschedule();
+            if (menus != null) menus.start();
             if (menus != null) menus.closeAll();
             return true;
         } catch (IllegalArgumentException e) {

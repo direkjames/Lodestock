@@ -14,6 +14,9 @@ price-floor: 0.01
 gui:
   # How many items Shift + left-click buys in the menu (2 to 64).
   bulk-amount: 16
+  # How often (in ticks, 20 = one second) open market windows check for changes. Only icons that changed
+  # are redrawn, and nothing happens when nothing changed. 0 = windows only update when their player clicks.
+  refresh-ticks: 20
 
 sell-all:
   # Players must type /lodestock sellall confirm after /lodestock sellall.

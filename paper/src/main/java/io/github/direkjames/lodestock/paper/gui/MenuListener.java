@@ -77,7 +77,7 @@ public final class MenuListener implements Listener {
                 return;
             }
         }
-        plugin.menus().refresh(menu); // show the new prices and stock
+        plugin.menus().sync(menu); // show the new prices and stock (only icons that changed are replaced)
     }
 
     @EventHandler

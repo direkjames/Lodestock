@@ -20,6 +20,7 @@ public final class Market {
     private final MarketStorage storage;
     private final Map<String, MarketItem> items = new LinkedHashMap<>();
     private final Map<String, ItemState> states = new HashMap<>();
+    private long version; // goes up every time any price or stock changes, so windows know when to redraw
 
     public Market(MarketSettings settings, Collection<MarketItem> itemList, MarketStorage storage) {
         this(settings, RecoverySettings.OFF, itemList, storage);
@@ -138,6 +139,9 @@ public final class Market {
     public synchronized MarketSettings settings() { return settings; }
     public synchronized RecoverySettings recovery() { return recovery; }
 
+    /** Goes up every time any price or stock changes. Compare it to a saved value to see if anything changed. */
+    public synchronized long version() { return version; }
+
     /** Admin: sets the current price. Must be at least the price floor. */
     public synchronized void setPrice(String id, double price) {
         ItemState s = require(id);
@@ -168,6 +172,7 @@ public final class Market {
         for (MarketItem item : items.values()) {
             states.put(item.id(), new ItemState(item.basePrice(), item.startStock()));
         }
+        version++;
         storage.saveAll(new HashMap<>(states));
     }
 
@@ -191,6 +196,7 @@ public final class Market {
             states.put(target, new ItemState(Math.max(settings.priceFloor(), s.price() * factor),
                     s.stock(), false, s.stockHeld()));
         }
+        version++;
         storage.saveAll(new HashMap<>(states));
         return targets.size();
     }
@@ -220,7 +226,10 @@ public final class Market {
                 changed.put(item.id(), next);
             }
         }
-        if (!changed.isEmpty()) storage.saveAll(changed);
+        if (!changed.isEmpty()) {
+            version++;
+            storage.saveAll(changed);
+        }
         return changed.size();
     }
 
@@ -246,6 +255,7 @@ public final class Market {
     }
 
     private void update(String id, ItemState next) {
+        version++;
         states.put(id, next);
         storage.save(id, next);
     }

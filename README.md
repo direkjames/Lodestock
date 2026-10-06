@@ -120,6 +120,7 @@ Everything lives in `plugins/Lodestock/`:
 | `multiplier` | `0.01` | How much each trade moves the price (0.01 is about 1%) |
 | `price-floor` | `0.01` | Prices never fall below this |
 | `gui.bulk-amount` | `16` | How many items shift + left-click buys (2 to 64) |
+| `gui.refresh-ticks` | `20` | How often (in ticks, 20 = one second) open windows check for changes. Only changed icons are redrawn, and nothing happens when nothing changed. 0 = windows only update when their player clicks |
 | `sell-all.confirm` | `true` | Require `/lodestock sellall confirm` |
 | `sell-all.confirm-seconds` | `15` | How long the confirmation stays valid (minimum 5) |
 | `sell-all.cooldown-seconds` | `30` | Time before the same player can sell everything again (0 turns it off) |

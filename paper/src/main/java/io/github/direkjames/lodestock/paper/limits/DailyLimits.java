@@ -37,6 +37,7 @@ public final class DailyLimits implements Listener {
     private final Database db;
     private volatile LimitSettings settings = LimitSettings.off();
     private final Map<UUID, PlayerData> cache = new ConcurrentHashMap<>();
+    private volatile long version; // goes up whenever anyone's counts change
 
     public DailyLimits(LodestockPlugin plugin, Database db) {
         this.plugin = plugin;
@@ -99,6 +100,16 @@ public final class DailyLimits implements Listener {
         return left == UNLIMITED || limit <= 0 ? "unlimited" : left + "/" + limit;
     }
 
+    /** Goes up whenever anyone's counts change. Windows use it to know when to redraw the limit lines. */
+    public long version() {
+        return version;
+    }
+
+    /** Names the limit day it is right now. A window also redraws when this changes. */
+    public String currentDay() {
+        return settings.dayKey(Instant.now());
+    }
+
     public String resetsIn() {
         return settings.resetsIn(Instant.now());
     }
@@ -109,6 +120,7 @@ public final class DailyLimits implements Listener {
         PlayerData data = data(uuid);
         int[] used = data.items.computeIfAbsent(item.id(), k -> new int[2]);
         used[buy ? 0 : 1] += count;
+        version++;
 
         String id = uuid.toString();
         String day = data.day;

@@ -16,8 +16,50 @@ All notable changes to Lodestock are listed here. Lodestock uses [semantic versi
 - Every item automatically gets a permission, `lodestock.ore.<item>`, that everyone has by default (and `lodestock.ore.*`). Deny it to lock an item for a group or player. Locked items are greyed out and can't be traded.
 - New permission `lodestock.limit.bypass` (operators by default).
 
+- Open market windows now update by themselves when a price, stock or daily limit changes (by another player's trade, drift, regeneration or an admin command), instead of only when you click.
+- Windows redraw only the icons that changed, and do nothing at all when nothing changed. Trading is smoother and cheaper on busy servers.
+- New `gui.refresh-ticks` setting (default 20, 0 = only update on click).
+
 ### Storage
 - The database file is upgraded automatically (schema version 3). Existing data is kept.
+
+### Upgrading from 0.2.0-beta.1
+Your prices, stock and history are kept: the database is upgraded automatically the first time the new version starts. Make a copy of `plugins/Lodestock/` first if you want a backup.
+
+Lodestock never overwrites your existing config files, so the new settings are **not** added to them. Everything has a safe default and works without any changes, but to see and change the new settings, add these lines to your `config.yml`:
+
+```yaml
+gui:
+  bulk-amount: 16
+  # How often (in ticks, 20 = one second) open windows check for changes. 0 = only update on click.
+  refresh-ticks: 20
+
+recovery:
+  interval-minutes: 10   # minutes between recovery steps
+  catch-up-hours: 24     # also apply offline time, up to this many hours (0 = off)
+
+drift:
+  enabled: true
+  percent: 2.0           # each step, the price closes this percent of its gap to the base price
+
+regen:
+  enabled: true
+  percent: 2.0           # each step, stock moves this percent of max-stock toward start-stock
+
+limits:
+  daily-buy: 0           # most one player can buy of one item per day (0 = no limit)
+  daily-sell: 0          # most one player can sell of one item per day (0 = no limit)
+  reset-time: "00:00"    # when a new limit day starts
+  timezone: "server"     # "server", or a name such as Asia/Manila or UTC
+```
+
+(`gui.bulk-amount` is already in your file. Only add `refresh-ticks` under it.)
+
+Optional per-item settings for `items.yml`: `drift: false`, `regen: false`, `daily-buy: <number>`, `daily-sell: <number>`.
+
+To see the new messages (limits, locked items, the new help line), copy the new lines from the bundled `lang/en.yml`, or delete your `lang/en.yml` to get a fresh one (back it up first if you edited it). Without that, the English defaults are used automatically for anything missing.
+
+New permissions: `lodestock.ore.<item>` and `lodestock.ore.*` (everyone, by default) and `lodestock.limit.bypass` (operators). Behaviour that is on by default after updating: price drift and stock regeneration. Set `drift.enabled` and `regen.enabled` to `false` to switch them off.
 
 ## 0.2.0-beta.1 - 2026-10-06
 

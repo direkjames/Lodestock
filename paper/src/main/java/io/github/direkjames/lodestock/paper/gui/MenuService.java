@@ -19,14 +19,26 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-/** Builds and refreshes the market window. Trading itself stays in TradeService. */
+/**
+ * Builds and refreshes the market window. Trading itself stays in TradeService.
+ * <p>
+ * The whole window is only drawn when it opens, when the page changes or after a reload. After
+ * that, a window is only touched when something it shows has changed (a price, stock, a daily
+ * limit), and then only the icons that changed are replaced.
+ */
 public final class MenuService {
     private final LodestockPlugin plugin;
+    private final Set<MarketMenu> open = new HashSet<>(); // main thread only
+    private BukkitTask task;
 
     public MenuService(LodestockPlugin plugin) {
         this.plugin = plugin;
@@ -40,20 +52,54 @@ public final class MenuService {
         menu.setViewer(player);
         populate(menu);
         player.openInventory(inventory);
+        open.add(menu);
     }
 
-    /** Redraws an open menu with the latest prices and stock. */
+    /** Redraws the whole menu. Used when the page changes. */
     public void refresh(MarketMenu menu) {
         populate(menu);
     }
 
-    /** Redraws every open Lodestock menu (used after admin changes). */
-    public void refreshOpen() {
-        for (Player player : plugin.getServer().getOnlinePlayers()) {
-            if (player.getOpenInventory().getTopInventory().getHolder() instanceof MarketMenu menu) {
-                refresh(menu);
+    /** Replaces only the icons that changed since the menu was last drawn. Does nothing if nothing changed. */
+    public void sync(MarketMenu menu) {
+        syncIfChanged(menu, plugin.market().version(), plugin.limits().version(), plugin.limits().currentDay());
+    }
+
+    /** Updates every open menu whose contents changed. Cheap when nothing changed. */
+    public void syncAll() {
+        if (open.isEmpty()) return;
+        long marketVersion = plugin.market().version();
+        long limitsVersion = plugin.limits().version();
+        String day = plugin.limits().currentDay();
+        Iterator<MarketMenu> it = open.iterator();
+        while (it.hasNext()) {
+            MarketMenu menu = it.next();
+            Player viewer = menu.viewer();
+            if (viewer == null || !viewer.isOnline() || viewer.getOpenInventory().getTopInventory().getHolder() != menu) {
+                it.remove(); // closed, or the player left
+                continue;
             }
+            syncIfChanged(menu, marketVersion, limitsVersion, day);
         }
+    }
+
+    /** Admin commands call this after changing the market. */
+    public void refreshOpen() {
+        syncAll();
+    }
+
+    /** (Re)starts the timer that keeps open windows up to date. Set {@code gui.refresh-ticks} to 0 to turn it off. */
+    public void start() {
+        stop();
+        int ticks = plugin.getConfig().getInt("gui.refresh-ticks", 20);
+        if (ticks <= 0) return;
+        ticks = Math.max(5, ticks);
+        task = plugin.getServer().getScheduler().runTaskTimer(plugin, this::syncAll, ticks, ticks);
+    }
+
+    public void stop() {
+        if (task != null) task.cancel();
+        task = null;
     }
 
     /** Closes every open Lodestock menu (used after a reload, when the layout may have changed). */
@@ -63,6 +109,41 @@ public final class MenuService {
                 player.closeInventory();
             }
         }
+        open.clear();
+    }
+
+    private void syncIfChanged(MarketMenu menu, long marketVersion, long limitsVersion, String day) {
+        if (menu.upToDate(marketVersion, limitsVersion, day)) return;
+        update(menu);
+        menu.markSynced(marketVersion, limitsVersion, day);
+    }
+
+    /** Compares what each item icon should show now with what it shows, and replaces only the ones that differ. */
+    private void update(MarketMenu menu) {
+        Market market = plugin.market();
+        Inventory inventory = menu.getInventory();
+        Player viewer = menu.viewer();
+        for (Map.Entry<Integer, String> slot : menu.itemSlots().entrySet()) {
+            MarketItem item = market.item(slot.getValue()).orElse(null);
+            Material material = Material.matchMaterial(slot.getValue());
+            if (item == null || material == null) continue;
+            MarketMenu.View view = viewOf(item, viewer);
+            if (view.equals(menu.shown(slot.getKey()))) continue;
+            inventory.setItem(slot.getKey(), itemIcon(item, material, viewer));
+            menu.setShown(slot.getKey(), view);
+        }
+    }
+
+    private MarketMenu.View viewOf(MarketItem item, Player viewer) {
+        ItemState state = plugin.market().state(item.id()).orElseThrow();
+        boolean locked = viewer != null && !OrePermissions.can(viewer, item.id());
+        int buyLeft = DailyLimits.UNLIMITED;
+        int sellLeft = DailyLimits.UNLIMITED;
+        if (viewer != null && !locked) {
+            buyLeft = plugin.limits().remainingBuy(viewer, item);
+            sellLeft = plugin.limits().remainingSell(viewer, item);
+        }
+        return new MarketMenu.View(state.price(), state.stock(), locked, buyLeft, sellLeft);
     }
 
     private void populate(MarketMenu menu) {
@@ -71,6 +152,8 @@ public final class MenuService {
         Inventory inventory = menu.getInventory();
         inventory.clear();
         menu.clearButtons();
+        // Read the versions first, so a change that happens later is noticed by the next check.
+        menu.markSynced(market.version(), plugin.limits().version(), plugin.limits().currentDay());
 
         int pages = layout.pageCount();
         menu.setPage(Math.max(0, Math.min(menu.page(), pages - 1)));
@@ -86,6 +169,7 @@ public final class MenuService {
             MarketItem item = market.item(entry.getValue()).orElse(null);
             if (material == null || item == null || entry.getKey() >= inventory.getSize()) continue;
             inventory.setItem(entry.getKey(), itemIcon(item, material, menu.viewer()));
+            menu.setShown(entry.getKey(), viewOf(item, menu.viewer()));
             menu.put(entry.getKey(), new MarketMenu.Button(MarketMenu.Kind.ITEM, item.id()));
         }
 
