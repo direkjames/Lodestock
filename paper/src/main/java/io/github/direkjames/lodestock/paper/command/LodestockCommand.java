@@ -737,6 +737,8 @@ public final class LodestockCommand implements TabExecutor {
         }
 
         String sub = args[0].toLowerCase(Locale.ROOT);
+        // Admin commands never suggest anything (event ids, for one, are a surprise) to people who can't use them.
+        if (ADMIN_COMMANDS.contains(sub) && !sender.hasPermission("lodestock.admin." + sub)) return List.of();
         if (args.length == 2) {
             if (sub.equals("price") || sub.equals("chart") || sub.equals("setprice") || sub.equals("setstock")) return itemIds(typed);
             if (sub.equals("reset")) {

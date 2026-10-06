@@ -1,0 +1,62 @@
+name: Release
+
+# Runs when a version tag such as v1.0.0 is pushed. Builds the plugin and publishes a GitHub release
+# with the jar and the matching section of CHANGELOG.md. (JitPack builds the API from the same tag.)
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Check the tag matches the version in build.gradle.kts
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          VERSION=$(grep -m1 'version = "' build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "Tag $TAG does not match the version $VERSION in build.gradle.kts"
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Build and test
+        run: ./gradlew build
+
+      - name: Take this version's notes from the changelog
+        run: |
+          awk -v v="$VERSION" '
+            $0 ~ "^## " v " " { on=1; next }
+            on && /^## / { exit }
+            on { print }
+          ' CHANGELOG.md > release-notes.md
+          test -s release-notes.md || { echo "No section for $VERSION in CHANGELOG.md"; exit 1; }
+
+      - name: Find the plugin jar
+        run: |
+          JAR=$(find paper/build/libs -name 'Lodestock-Paper*.jar' ! -name '*plain*' | head -n 1)
+          test -n "$JAR" || { echo "Plugin jar not found"; exit 1; }
+          echo "JAR=$JAR" >> "$GITHUB_ENV"
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Lodestock ${{ env.VERSION }}
+          body_path: release-notes.md
+          files: ${{ env.JAR }}
+          prerelease: ${{ contains(env.VERSION, '-') }}

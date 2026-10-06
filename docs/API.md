@@ -2,11 +2,11 @@
 
 Lodestock has a public API so other plugins can read the market, react to trades and change prices. It is a separate module (`lodestock-api`) with no code from the plugin itself, so you compile against it and Lodestock provides the real thing at runtime.
 
-The API is in beta together with the plugin. `LodestockApi.API_VERSION` is `1`. Within one version, methods and events are only added, never removed or changed. A breaking change raises the version and is listed in the [changelog](../CHANGELOG.md).
+The API is stable from Lodestock 1.0.0. `LodestockApi.API_VERSION` is `1`. Within one API version (all of Lodestock 1.x), methods and events are only added, never removed or changed. A breaking change raises `API_VERSION` and only comes with a new major release of Lodestock (2.0.0), announced in the [changelog](../CHANGELOG.md) first. Check `api.apiVersion()` if you want to be safe.
 
 ## Add it to your project
 
-Lodestock is built on JitPack. Use the tag of the release you want (for example `v0.4.0-beta.1`).
+Lodestock is built on JitPack. Use the tag of the release you want (for example `v1.0.0`).
 
 **Gradle (Kotlin)**
 ```kotlin

@@ -6,6 +6,7 @@ import io.github.direkjames.lodestock.core.events.MarketEventParser;
 import io.github.direkjames.lodestock.core.market.MarketItem;
 import io.github.direkjames.lodestock.paper.LodestockPlugin;
 import io.github.direkjames.lodestock.paper.admin.MarketAdmin;
+import io.github.direkjames.lodestock.paper.storage.Database;
 import io.github.direkjames.lodestock.paper.util.ItemNames;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
@@ -20,6 +21,8 @@ import java.text.DecimalFormatSymbols;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -55,11 +58,47 @@ public final class EventService {
     private BukkitTask task;
     /** key = event id + the moment it is due. Kept across reloads. */
     private final Map<String, Pending> rolled = new HashMap<>();
-    /** The same keys, once they have been handled, with the time they were handled. */
-    private final Map<String, Long> handled = new HashMap<>();
+    /** For each event (lower case id), the latest due time that was handled. Saved, so a restart never repeats an event. */
+    private final Map<String, Long> lastHandled = new HashMap<>();
+    private final Database db;
 
-    public EventService(LodestockPlugin plugin) {
+    public EventService(LodestockPlugin plugin, Database db) {
         this.plugin = plugin;
+        this.db = db;
+        try {
+            Map<String, Long> saved = db.<Map<String, Long>>query(c -> {
+                Map<String, Long> result = new HashMap<>();
+                try (PreparedStatement ps = c.prepareStatement("SELECT meta_key, meta_value FROM meta WHERE meta_key LIKE 'event_last:%'");
+                     ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        try {
+                            result.put(rs.getString(1).substring("event_last:".length()), Long.parseLong(rs.getString(2)));
+                        } catch (NumberFormatException ignored) {
+                            // a damaged value is treated as "never ran"
+                        }
+                    }
+                }
+                return result;
+            }).join();
+            lastHandled.putAll(saved);
+        } catch (RuntimeException e) {
+            plugin.getLogger().warning("Could not read when events last ran, an event due right after this start may repeat: " + e.getMessage());
+        }
+    }
+
+    private void markHandled(MarketEvent event, Instant due) {
+        String key = event.id().toLowerCase(Locale.ROOT);
+        long value = due.toEpochMilli();
+        lastHandled.put(key, value);
+        db.write("save event time", c -> {
+            try (PreparedStatement ps = c.prepareStatement(
+                    "INSERT INTO meta (meta_key, meta_value) VALUES (?, ?) "
+                            + "ON CONFLICT(meta_key) DO UPDATE SET meta_value = excluded.meta_value")) {
+                ps.setString(1, "event_last:" + key);
+                ps.setString(2, Long.toString(value));
+                ps.executeUpdate();
+            }
+        });
     }
 
     /**
@@ -107,7 +146,7 @@ public final class EventService {
                     continue;
                 }
                 MarketEventParser.parse(id, one.getValues(false), known, found).ifPresent(event -> {
-                    loaded.put(id, event);
+                    loaded.put(id.toLowerCase(Locale.ROOT), event);
                     if (enabled && event.scheduled() && event.percentMax() > tax) {
                         found.add("events." + id + ": a " + PERCENT.format(event.percentMax()) + "% " + event.type().name().toLowerCase(Locale.ROOT)
                                 + " is bigger than your " + PERCENT.format(tax) + "% tax, so players who act on the warning can profit. "
@@ -164,13 +203,13 @@ public final class EventService {
 
     /** Runs an event right now, without a warning or a chance roll. */
     public RunResult run(String id) {
-        MarketEvent event = events.get(id);
+        MarketEvent event = events.get(id.toLowerCase(Locale.ROOT));
         if (event == null) return RunResult.UNKNOWN;
         return fire(event, event.roll(ThreadLocalRandom.current(), marketIds())) ? RunResult.DONE : RunResult.FAILED;
     }
 
     public Optional<MarketEvent> find(String id) {
-        return Optional.ofNullable(events.get(id));
+        return Optional.ofNullable(events.get(id.toLowerCase(Locale.ROOT)));
     }
 
     // ---------- the timer ----------
@@ -183,7 +222,7 @@ public final class EventService {
             warnExtra = event.warnMinutes() * 60_000L + 1000L;
             for (Instant due : EventTimes.between(event, zone, now.minusMillis(GRACE_MILLIS), now.plusMillis(warnExtra))) {
                 String key = event.id() + "@" + due.toEpochMilli();
-                if (handled.containsKey(key)) continue;
+                if (due.toEpochMilli() <= lastHandled.getOrDefault(event.id().toLowerCase(Locale.ROOT), 0L)) continue;
                 if (now.isBefore(due)) {
                     // Warning time: decide now whether it happens, so players are only warned about real events.
                     if (rolled.containsKey(key)) continue;
@@ -197,13 +236,12 @@ public final class EventService {
                 } else {
                     Pending pending = rolled.remove(key);
                     if (pending == null) pending = decide(event); // no warning phase (warn-minutes 0, or the server just started)
-                    handled.put(key, now.toEpochMilli());
+                    markHandled(event, due);
                     if (pending.go()) fire(event, pending.roll());
                 }
             }
         }
         long cutoff = now.toEpochMilli() - 86_400_000L;
-        handled.values().removeIf(time -> time < cutoff);
         rolled.keySet().removeIf(key -> Long.parseLong(key.substring(key.lastIndexOf('@') + 1)) < cutoff);
     }
 

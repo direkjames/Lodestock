@@ -35,7 +35,7 @@ jobs:
         run: |
           mkdir -p /tmp/check && cd /tmp/check
           unzip -q "$GITHUB_WORKSPACE/$JAR" \
-            'io/github/direkjames/lodestock/paper/*' 'io/github/direkjames/lodestock/core/*'
+            'io/github/direkjames/lodestock/paper/*' 'io/github/direkjames/lodestock/core/*' 'io/github/direkjames/lodestock/api/*'
           for f in $(find . -name '*.class'); do
             major=$(javap -v "$f" | grep 'major version' | awk '{print $3}')
             if [ "$major" != "65" ]; then

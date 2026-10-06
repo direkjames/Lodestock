@@ -228,6 +228,14 @@ public final class TradeService {
 
         if (!allowTrade(player, TradeType.SELL, id, count, quote.total())) return;
 
+        // Another plugin may have changed what is in the hand while it looked at the trade: check again.
+        ItemStack current = player.getInventory().getItemInMainHand();
+        if (current.getType() != material || !current.isSimilar(new ItemStack(material)) || current.getAmount() < count) {
+            msg.send(player, "no-items", Placeholder.unparsed("item", ItemNames.pretty(id)));
+            return;
+        }
+        amount = current.getAmount();
+
         // Pay first. If the payment is refused (e.g. money cap), nothing is taken.
         if (!eco.deposit(player, quote.total())) {
             msg.send(player, "transaction-failed");
@@ -236,7 +244,7 @@ public final class TradeService {
         if (count >= amount) {
             player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
         } else {
-            ItemStack rest = hand.clone();
+            ItemStack rest = current.clone();
             rest.setAmount(amount - count);
             player.getInventory().setItemInMainHand(rest);
         }
@@ -316,19 +324,30 @@ public final class TradeService {
         if (plan.entries().isEmpty()) {
             return;
         }
-        // One payment for everything. If it is refused, nothing is taken.
+        // Take the items first. Another plugin may have changed the inventory while it looked at the trade,
+        // so if anything is missing, everything taken so far is given back and nothing is paid.
+        List<Entry> taken = new ArrayList<>();
+        for (Entry entry : plan.entries()) {
+            if (!removeItems(player, entry.material(), entry.count())) {
+                for (Entry back : taken) give(player, back.material(), back.count());
+                msg.send(player, "transaction-failed");
+                return;
+            }
+            taken.add(entry);
+        }
+        // One payment for everything. If it is refused, the items go back.
         if (!eco.deposit(player, plan.total())) {
+            for (Entry back : taken) give(player, back.material(), back.count());
             msg.send(player, "transaction-failed");
             return;
         }
         for (Entry entry : plan.entries()) {
-            // The plan was counted from this same inventory a moment ago, so this always succeeds.
-            removeItems(player, entry.material(), entry.count());
             plugin.market().recordSell(entry.id(), entry.count());
             plugin.limits().recordSell(player, plugin.market().item(entry.id()).orElseThrow(), entry.count());
             plugin.tradeLog().trade(player, "SELL", entry.id(), entry.count(), entry.total());
-            announce(player, TradeType.SELL, entry.id(), entry.count(), entry.total());
         }
+        // Other plugins hear about it only once everything is done.
+        for (Entry entry : plan.entries()) announce(player, TradeType.SELL, entry.id(), entry.count(), entry.total());
 
         int cooldown = plugin.getConfig().getInt("sell-all.cooldown-seconds", 30);
         if (cooldown > 0) sellAllCooldown.put(player.getUniqueId(), System.currentTimeMillis() + cooldown * 1000L);
@@ -351,6 +370,12 @@ public final class TradeService {
     }
 
     /** Works out what a sellall would do right now. Only the hotbar and main inventory count. */
+    /** Puts items back into the inventory; whatever does not fit is dropped at the player's feet, never lost. */
+    private void give(Player player, Material material, int count) {
+        player.getInventory().addItem(new ItemStack(material, count)).values()
+                .forEach(leftover -> player.getWorld().dropItemNaturally(player.getLocation(), leftover));
+    }
+
     /** Asks other plugins whether a trade may go ahead. Tells the player if one says no. */
     private boolean allowTrade(Player player, TradeType type, String itemId, int count, double total) {
         LodestockPreTradeEvent event = new LodestockPreTradeEvent(player, type, itemId, count, total);

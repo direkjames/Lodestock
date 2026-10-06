@@ -2,7 +2,21 @@
 
 All notable changes to Lodestock are listed here. Lodestock uses [semantic versioning](https://semver.org/).
 
-## Unreleased
+## 1.0.0 - 2026-10-07
+
+The first stable release. It adds price history, leaderboards and placeholders, the economy safety tools, a public API, the Discord webhook and scheduled events on top of 0.3.0-beta.1, and fixes what the final review found. Read "Upgrading from 0.3.0-beta.1" below before updating.
+
+From here on, config files, commands, permissions and the public API keep working across 1.x releases. See [docs/SUPPORT.md](docs/SUPPORT.md) for which Minecraft versions are supported.
+
+### Fixes since 0.3.0-beta.1
+- `/lodestock sellall` and `sellhand` now check again that the items are still there after other plugins have looked at the trade. If something changed in the inventory, nothing is paid and nothing is lost.
+- `/lodestock sellall` takes the items first and pays second, and gives everything back if the payment is refused. Other plugins only hear about the trade once it is complete.
+- Market windows are closed when the plugin is disabled, so a plugin manager or reload can no longer leave one open without its click protection.
+- A scheduled event can no longer run twice after a quick restart: when each event last ran is saved.
+- Event ids are not case sensitive in `/lodestock events run`, and admin commands no longer offer tab completion (item ids, event ids) to people who cannot use them, so surprise events stay a surprise.
+- `/lodestock discord summary` reports a database error instead of posting an empty summary, and never waits forever if the plugin is disabled meanwhile.
+- API calls that change the market give a clear error when made from another thread (they must be made on the main thread).
+- Tested with many threads trading, adjusting and recovering at once: stock counts and prices stay correct.
 
 ### Market
 - Price history: every 10 minutes, the price and stock of every item that changed are saved (kept for 14 days by default).
@@ -53,7 +67,7 @@ All notable changes to Lodestock are listed here. Lodestock uses [semantic versi
 - The database file is upgraded automatically (schema version 5: adds the price history table and the lifetime stats table).
 
 ### Upgrading from 0.3.0-beta.1
-Everything works with defaults. To see and change the new settings, add this to your `config.yml`:
+Back up `plugins/Lodestock/` first (stop the server and copy the folder). The database upgrades itself and cannot be moved back to an older version without the backup. Everything works with defaults. To see and change the new settings, add this to your `config.yml`:
 
 ```yaml
 price-history:
@@ -71,6 +85,10 @@ leaderboards:
 ```
 
 The new commands and warnings work with no config changes. If you want the safer defaults, raise `price-floor` to about 5 to 10 percent of your cheapest item (the audit tells you when it is too low). The wording of the audit and economy messages falls back to built-in English text.
+
+Your `lang/en.yml` is never overwritten, so the `help` and `help-admin` texts will not list the new commands (`top`, `chart`, `audit`, `economy`, `discord`, `events`) until you copy them from the bundled `lang/en.yml` (or delete your `lang/en.yml` after saving a copy of your changes, and let Lodestock create a fresh one). Everything else falls back to the built-in English text.
+
+`discord.yml` and `events.yml` are created on the first start, both switched off. Nothing is sent or scheduled until you turn them on.
 
 The "Trend (24h)" line and the "Press Q to open the price chart" hint are added by the plugin itself, so they show up even with an older `lang/en.yml`. To change their wording, copy `item-trend` and `item-chart-hint` from the bundled `lang/en.yml` into the `gui:` section of yours.
 

@@ -1,0 +1,63 @@
+name: Bug report
+description: Something in Lodestock does not work the way it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the report! Please check the [FAQ](https://github.com/direkjames/Lodestock/blob/main/docs/FAQ.md) first.
+        **Never paste your Discord webhook address.** Remove it from any config you share.
+  - type: input
+    id: lodestock
+    attributes:
+      label: Lodestock version
+      description: "Run /version Lodestock"
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: server
+    attributes:
+      label: Server software and Minecraft version
+      description: "Run /version"
+      placeholder: "Paper 1.21.11 build 123"
+    validations:
+      required: true
+  - type: input
+    id: economy
+    attributes:
+      label: Vault and economy plugin (with versions)
+      placeholder: "Vault 1.7.3, EssentialsX 2.21"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Error from the console or logs/latest.log
+      description: Paste the whole error, not a screenshot.
+      render: text
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant config (optional)
+      description: The part of config.yml, items.yml, events.yml or discord.yml that matters. Remove your webhook address.
+      render: yaml
+  - type: textarea
+    id: plugins
+    attributes:
+      label: Other plugins that might be involved (optional)

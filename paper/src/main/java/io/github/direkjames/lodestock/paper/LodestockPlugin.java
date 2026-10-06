@@ -99,7 +99,7 @@ public final class LodestockPlugin extends JavaPlugin {
         trades = new TradeService(this);
         admin = new MarketAdmin(this);
         discord = new DiscordService(this);
-        events = new EventService(this);
+        events = new EventService(this, database);
         menus = new MenuService(this);
         charts = new ChartService(this);
 
@@ -143,7 +143,10 @@ public final class LodestockPlugin extends JavaPlugin {
         if (events != null) events.shutdown();
         if (discord != null) discord.shutdown();
         if (priceHistory != null) priceHistory.shutdown();
-        if (menus != null) menus.stop();
+        if (menus != null) {
+            menus.closeAll(); // no window may stay open without the listener that cancels its clicks
+            menus.stop();
+        }
         if (recovery != null) recovery.stop();
         orePermissions.clear();
         if (market != null) market.flush();

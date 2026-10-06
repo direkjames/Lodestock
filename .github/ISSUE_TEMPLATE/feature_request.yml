@@ -1,0 +1,24 @@
+name: Feature request
+description: Suggest an idea
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: Ideas are welcome. Lodestock is for one server and for vanilla items, so please check the "Known limits" in the README first.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would it solve?
+      description: Tell me what you are trying to do, not only what you want added.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like to see?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What do you do today instead? (optional)

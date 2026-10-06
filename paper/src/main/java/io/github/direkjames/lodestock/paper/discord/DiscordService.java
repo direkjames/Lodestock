@@ -142,7 +142,7 @@ public final class DiscordService implements Listener {
         if (!s.ready()) return CompletableFuture.completedFuture(Result.failed(problem()));
         long since = System.currentTimeMillis() - 24L * 3_600_000L;
         CompletableFuture<Result> done = new CompletableFuture<>();
-        plugin.tradeLog().summaryAsync(since, TOP_LINES).whenComplete((summary, error) -> {
+        plugin.tradeLog().summaryOrFail(since, Long.MAX_VALUE, TOP_LINES).whenComplete((summary, error) -> {
             if (error != null || summary == null) {
                 done.complete(Result.failed("could not read the trade history"));
                 return;
@@ -152,10 +152,14 @@ public final class DiscordService implements Listener {
                 return;
             }
             // Money is formatted on the main thread, as the economy plugin expects.
-            plugin.getServer().getScheduler().runTask(plugin, () -> {
-                Embed embed = summaryEmbed(summary);
-                post(s, embed).thenAccept(done::complete);
-            });
+            try {
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    Embed embed = summaryEmbed(summary);
+                    post(s, embed).thenAccept(done::complete);
+                });
+            } catch (RuntimeException e) { // the plugin was disabled in the meantime
+                done.complete(Result.failed("the plugin is shutting down"));
+            }
         });
         return done;
     }

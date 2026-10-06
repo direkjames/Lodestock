@@ -114,6 +114,11 @@ public final class TradeLog {
 
     /** Same, for trades from {@code since} up to but not including {@code until}. */
     public CompletableFuture<Summary> summaryAsync(long since, long until, int top) {
+        return summaryOrFail(since, until, top).exceptionally(error -> new Summary(0, 0, 0, 0, List.of(), List.of()));
+    }
+
+    /** Same, but the future fails if the database could not be read, instead of answering with an empty summary. */
+    public CompletableFuture<Summary> summaryOrFail(long since, long until, int top) {
         return db.<Summary>query(c -> {
             int trades = 0;
             int players = 0;
@@ -158,7 +163,7 @@ public final class TradeLog {
                 }
             }
             return new Summary(trades, players, in, out, earners, items);
-        }).exceptionally(error -> new Summary(0, 0, 0, 0, List.of(), List.of()));
+        });
     }
 
     /**

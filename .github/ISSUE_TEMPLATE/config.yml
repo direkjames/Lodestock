@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea
+    url: https://github.com/direkjames/Lodestock/discussions
+    about: Ask a question, or suggest an idea, in GitHub Discussions.
+  - name: Troubleshooting guide
+    url: https://github.com/direkjames/Lodestock/blob/main/docs/FAQ.md
+    about: Most common problems, backups and resetting the market.
+  - name: Security problem
+    url: https://github.com/direkjames/Lodestock/security/advisories/new
+    about: Report a security problem privately. Please do not open a public issue.

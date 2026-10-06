@@ -2,7 +2,7 @@
 
 A stock market for ores in Minecraft. Prices move with every trade, so what players buy and sell actually matters. Built for Paper and Purpur servers (OneBlock servers especially).
 
-> **Status: public beta (0.3.0-beta.1).** All planned features are in, but expect small bugs and the occasional config change before 1.0.0.
+> **Version 1.0.0.** Stable: config files, commands, permissions and the [public API](docs/API.md) keep working across 1.x releases. Questions and bugs: see [Help and support](#help-and-support).
 
 Lodestock is a rework of **[OreMarket](https://github.com/OllieJW/Ore-Market) by OllieJW**, rebuilt for modern Minecraft with the original author's permission. Thank you, OllieJW, for the idea and the original plugin.
 
@@ -334,20 +334,25 @@ The page buttons only appear when there is a page to go to. Bad slots and overla
 - Trade history older than `history.keep-days` is deleted at startup. The lifetime stats behind the all-time leaderboards are small (one row per player and item) and are never deleted.
 - `/lodestock history` finds players who are online or that the server has seen before.
 
-## Known limits (alpha)
+## Known limits
 
 - Single server only. There is no proxy or network support, and no MySQL or MariaDB.
-- No PlaceholderAPI placeholders. They'll be added if people ask for them.
 - Trade results are sent as chat messages, so they can be hard to read while the window is open.
 - Vanilla items only.
 
 ## Roadmap
 
-1. **Done:** the Paper and Purpur plugin, crash-safe SQLite storage, price drift, daily limits, per-item permissions and live windows (the current beta).
-2. **Next:** price history and charts, a public API, a Discord webhook, and scheduled crash and surge events.
-3. **Then:** polish and the 1.0.0 release.
+Lodestock 1.0.0 is feature complete: the market, crash-safe storage, price drift, daily limits, per-item permissions, price history, leaderboards and placeholders, economy safety tools, the public API, the Discord webhook and scheduled events.
 
-Fabric and NeoForge versions, and ItemsAdder/Oraxen support, are postponed.
+Next is bug fixing and keeping up with new Minecraft versions (see [supported versions](docs/SUPPORT.md)). Fabric and NeoForge versions, and ItemsAdder/Oraxen support, are postponed and will only come back if people ask for them.
+
+## Help and support
+
+- **Something does not work?** Read the [FAQ and troubleshooting guide](docs/FAQ.md) first. It covers the most common problems, backups and resetting the market.
+- **Found a bug?** [Open an issue](https://github.com/direkjames/Lodestock/issues/new/choose) and fill in the form. Please include your Lodestock and server versions, and any error from the console.
+- **Questions and ideas?** Use [GitHub Discussions](https://github.com/direkjames/Lodestock/discussions).
+- **Security problem?** Please do not open a public issue. See [SECURITY.md](SECURITY.md).
+- Which Minecraft versions are supported, and for how long: [docs/SUPPORT.md](docs/SUPPORT.md).
 
 ## Building from source
 
@@ -359,7 +364,7 @@ You need JDK 21 or newer.
 
 The plugin jar is in `paper/build/libs/`. On Windows, use `gradlew.bat build`.
 
-The project has two modules: `core` (the market logic, with no Minecraft code and unit tests) and `paper` (the plugin).
+The project has three modules: `core` (the market logic, with no Minecraft code and unit tests), `api` (the public API and events for other plugins) and `paper` (the plugin).
 
 ## Statistics
 

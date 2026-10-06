@@ -29,8 +29,15 @@ public final class MarketAdmin {
         this.plugin = plugin;
     }
 
+    private static void mainThread() {
+        if (!org.bukkit.Bukkit.isPrimaryThread()) {
+            throw new IllegalStateException("Lodestock market changes must be made on the main server thread");
+        }
+    }
+
     /** @throws IllegalArgumentException if the item is unknown or the price is below the price floor */
     public Outcome setPrice(String source, String id, double price) {
+        mainThread();
         Market market = plugin.market();
         requireItem(market, id);
         if (!Double.isFinite(price) || price < market.settings().priceFloor()) {
@@ -45,6 +52,7 @@ public final class MarketAdmin {
 
     /** @throws IllegalArgumentException if the item is unknown or the stock is out of range */
     public Outcome setStock(String source, String id, int stock) {
+        mainThread();
         Market market = plugin.market();
         int max = requireItem(market, id).maxStock();
         if (stock < 0 || stock > max) {
@@ -59,6 +67,7 @@ public final class MarketAdmin {
 
     /** @throws IllegalArgumentException if the item is unknown */
     public Outcome reset(String source, String id) {
+        mainThread();
         Market market = plugin.market();
         requireItem(market, id);
         Outcome outcome = ask(AdjustType.RESET, id, Double.NaN, source);
@@ -69,6 +78,7 @@ public final class MarketAdmin {
     }
 
     public Outcome resetAll(String source) {
+        mainThread();
         Outcome outcome = ask(AdjustType.RESET_ALL, null, Double.NaN, source);
         if (!outcome.done()) return outcome;
         plugin.market().resetAll();
@@ -82,6 +92,7 @@ public final class MarketAdmin {
      * @throws IllegalArgumentException if the item is unknown or the percent is -100 or lower
      */
     public Outcome adjust(String source, String id, double percent) {
+        mainThread();
         Market market = plugin.market();
         if (id != null) requireItem(market, id);
         if (!Double.isFinite(percent) || percent <= -100) {
@@ -101,6 +112,7 @@ public final class MarketAdmin {
      * @throws IllegalArgumentException if an item is unknown or the percent is -100 or lower
      */
     public Outcome adjustItems(String source, java.util.Collection<String> ids, double percent) {
+        mainThread();
         Market market = plugin.market();
         for (String id : ids) requireItem(market, id);
         if (ids.isEmpty()) throw new IllegalArgumentException("no items given");
