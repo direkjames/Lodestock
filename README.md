@@ -4,7 +4,7 @@ A stock market for ores in Minecraft. Prices move with every trade, so what play
 
 > **Version 1.0.0.** Stable: config files, commands, permissions and the [public API](docs/API.md) keep working across 1.x releases. Questions and bugs: see [Help and support](#help-and-support).
 
-Lodestock is a rework of **[OreMarket](https://github.com/OllieJW/Ore-Market) by OllieJW**, rebuilt for modern Minecraft with the original author's permission. Thank you, OllieJW, for the idea and the original plugin.
+Lodestock is a rework of **[OreMarket](https://github.com/OllieJW/Ore-Market) by OllieJW**, rebuilt for modern Minecraft. Thank you, OllieJW, for the idea and the original plugin.
 
 ## Features
 
