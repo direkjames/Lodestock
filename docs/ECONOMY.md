@@ -204,7 +204,7 @@ Be careful with crash and surge. If you crash only one item of a pair, for examp
 
 - Keep them small, 10 to 25 percent. Lodestock warns you on startup and `/lodestock reload` when an event is bigger than your `tax-percent`, because that is when acting on the warning pays.
 - Keep daily limits on. They cap how much one player can buy cheap during a crash or stock up before a surge.
-- Use a `chance` below 100 and a short `warn-minutes` (or 0) if you want a surprise. Lodestock decides whether an event happens when the warning goes out, so players are only warned about events that really happen.
+- Use a `chance` below 100 and a short `warn-minutes` (or 0) if you want a surprise. `pick` (random items) and a percent range such as `"10-25"` make it harder to guess still, and by default the warning does not say which items or how much. Lodestock decides whether an event happens when the warning goes out, so players are only warned about events that really happen.
 - A crash followed by price recovery is a free profit window for anyone who buys during it. Choose items that have `drift` on and plenty of stock, and watch `/lodestock economy` after the first few events.
 
 ## Watching your economy

@@ -23,11 +23,19 @@ timezone: ""
 # Tell everyone on the server (the warning and the start). Set false to keep events silent.
 broadcast: true
 
+# For events with something random (see "pick" and a percent range below): false = the warning only says
+# that some prices are about to rise or fall, and the start message tells which items and how much.
+# true = the warning already names the items and the size.
+reveal-in-warning: false
+
 # Each event has an id (the key) and these settings:
 #   name          shown to players and in logs (optional, default is the id)
 #   type          crash or surge (required)
-#   percent       how big: 1 to 99 for a crash, 1 to 1000 for a surge (required)
+#   percent       how big: 1 to 99 for a crash, 1 to 1000 for a surge (required).
+#                 A range such as "10-25" picks a random size each time.
 #   items         "all", or a list of item ids from items.yml (optional, default all)
+#   pick          choose this many items at random from "items" (or from every item if items is "all")
+#                 each time the event happens. Leave it out to hit all of them.
 #   times         times of day it happens, in quotes, 24-hour clock, e.g. ["18:00", "21:30"]
 #                 (with no times, the event only runs when you use /lodestock events run)
 #   days          days of the week, e.g. [FRIDAY, SATURDAY] (optional, default every day)
@@ -46,6 +54,19 @@ events:
     days: [FRIDAY, SATURDAY]
     chance: 100
     warn-minutes: 5
+
+  # A surprise: a random size and 2 random ores from the list every time.
+  # The warning does not say which (see reveal-in-warning above).
+  ore-lottery:
+    name: "Ore Lottery"
+    type: surge
+    percent: "10-25"
+    items: [coal, copper_ingot, iron_ingot, gold_ingot, redstone, lapis_lazuli]
+    pick: 2
+    times: ["15:00"]
+    days: [WEDNESDAY]
+    chance: 70
+    warn-minutes: 3
 
   mining-slump:
     name: "Mining Slump"

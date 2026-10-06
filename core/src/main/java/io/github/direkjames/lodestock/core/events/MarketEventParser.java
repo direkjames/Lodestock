@@ -37,9 +37,11 @@ public final class MarketEventParser {
         }
 
         double max = type == MarketEvent.Type.CRASH ? MAX_CRASH : MAX_SURGE;
-        double percent = number(raw.get("percent"), Double.NaN);
-        if (!(percent >= 1 && percent <= max)) {
-            problems.add(where + "percent must be from 1 to " + (int) max + ", so the event was skipped");
+        double[] range = percentRange(raw.get("percent"));
+        double percent = range[0];
+        double percentMax = range[1];
+        if (!(percent >= 1 && percentMax <= max && percent <= percentMax)) {
+            problems.add(where + "percent must be a number from 1 to " + (int) max + " or a range like 10-25, so the event was skipped");
             return Optional.empty();
         }
 
@@ -65,6 +67,16 @@ public final class MarketEventParser {
                 }
                 items.addAll(seen);
             }
+        }
+
+        int pick = (int) Math.round(number(raw.get("pick"), 0));
+        if (pick < 0) {
+            problems.add(where + "pick can't be negative, so every item is used");
+            pick = 0;
+        }
+        if (pick > 0 && !all && pick >= items.size()) {
+            problems.add(where + "pick is " + pick + " but only " + items.size() + " item(s) are listed, so all of them are used");
+            pick = 0;
         }
 
         List<LocalTime> times = new ArrayList<>();
@@ -104,7 +116,19 @@ public final class MarketEventParser {
         if (times.isEmpty()) {
             problems.add(where + "has no times, so it never runs by itself (you can still run it with /lodestock events run " + id + ")");
         }
-        return Optional.of(new MarketEvent(id, name, type, percent, items, times, days, chance, warn));
+        return Optional.of(new MarketEvent(id, name, type, percent, percentMax, items, pick, times, days, chance, warn));
+    }
+
+    /** A number (20) or a range ("10-25"). Returns {min, max}, or NaNs if it is not valid. */
+    private static double[] percentRange(Object o) {
+        if (o instanceof String s && s.contains("-")) {
+            String[] parts = s.split("-", 2);
+            double low = number(parts[0], Double.NaN);
+            double high = number(parts[1], Double.NaN);
+            return new double[] {low, high};
+        }
+        double value = number(o, Double.NaN);
+        return new double[] {value, value};
     }
 
     private static DayOfWeek day(String text) {

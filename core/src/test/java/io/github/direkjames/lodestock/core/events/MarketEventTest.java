@@ -20,7 +20,7 @@ class MarketEventTest {
     private static final ZoneId MANILA = ZoneId.of("Asia/Manila");
 
     private static MarketEvent event(List<String> times, Set<DayOfWeek> days) {
-        return new MarketEvent("e", "E", MarketEvent.Type.CRASH, 10, List.of(),
+        return new MarketEvent("e", "E", MarketEvent.Type.CRASH, 10, 10, List.of(), 0,
                 times.stream().map(LocalTime::parse).toList(), days, 100, 5);
     }
 
@@ -32,7 +32,7 @@ class MarketEventTest {
                 "days", List.of("Friday", "sat"), "chance", 50, "warn-minutes", 10), ITEMS, problems).orElseThrow();
         assertTrue(problems.isEmpty());
         assertEquals("Ore Rush", e.name());
-        assertEquals(25.0, e.signedPercent(), 0.0001);
+        assertEquals(25.0, e.signed(e.percent()), 0.0001);
         assertEquals(List.of("coal", "iron_ingot"), e.items());
         assertEquals(List.of(LocalTime.of(18, 0), LocalTime.of(21, 30)), e.times());
         assertEquals(Set.of(DayOfWeek.FRIDAY, DayOfWeek.SATURDAY), e.days());
@@ -43,7 +43,7 @@ class MarketEventTest {
     void aCrashIsNegativeAndMissingItemsMeansEverything() {
         var e = MarketEventParser.parse("c", Map.of("type", "crash", "percent", 20, "times", List.of("20:00")),
                 ITEMS, new ArrayList<>()).orElseThrow();
-        assertEquals(-20.0, e.signedPercent(), 0.0001);
+        assertEquals(-20.0, e.signed(e.percent()), 0.0001);
         assertTrue(e.allItems());
         assertEquals("c", e.name());
         assertEquals(100.0, e.chance(), 0.0001);
@@ -80,6 +80,56 @@ class MarketEventTest {
         List<String> problems = new ArrayList<>();
         MarketEventParser.parse("x", Map.of("type", "crash", "percent", 10, "times", 1080), ITEMS, problems);
         assertTrue(problems.stream().anyMatch(p -> p.contains("in quotes")));
+    }
+
+    @Test
+    void aPercentRangeAndAPickAreRead() {
+        List<String> problems = new ArrayList<>();
+        var e = MarketEventParser.parse("r", Map.of("type", "surge", "percent", "10-25", "items", List.of("coal", "iron_ingot", "diamond"),
+                "pick", 2, "times", List.of("20:00")), ITEMS, problems).orElseThrow();
+        assertTrue(problems.isEmpty());
+        assertEquals(10.0, e.percent(), 0.0001);
+        assertEquals(25.0, e.percentMax(), 0.0001);
+        assertEquals(2, e.pick());
+        assertTrue(e.random());
+        // a bad range, a range above the cap, and a pick as large as the list
+        assertTrue(MarketEventParser.parse("b", Map.of("type", "crash", "percent", "30-10"), ITEMS, problems).isEmpty());
+        assertTrue(MarketEventParser.parse("c", Map.of("type", "crash", "percent", "10-100"), ITEMS, problems).isEmpty());
+        assertEquals(2, problems.size());
+        var all = MarketEventParser.parse("p", Map.of("type", "crash", "percent", 10, "items", List.of("coal", "diamond"), "pick", 2, "times", List.of("20:00")),
+                ITEMS, problems).orElseThrow();
+        assertEquals(0, all.pick());
+        assertEquals(3, problems.size());
+    }
+
+    @Test
+    void aRollPicksFromThePoolAndStaysInTheRange() {
+        var e = new MarketEvent("e", "E", MarketEvent.Type.SURGE, 10, 25, List.of("coal", "iron_ingot", "diamond"), 2,
+                List.of(LocalTime.of(20, 0)), Set.of(), 100, 5);
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (int i = 0; i < 200; i++) {
+            var roll = e.roll(new java.util.Random(i), ITEMS);
+            assertEquals(2, roll.items().size());
+            assertTrue(roll.items().stream().allMatch(ITEMS::contains));
+            assertTrue(roll.percent() >= 10 && roll.percent() <= 25);
+            seen.add(String.join(",", roll.items()));
+        }
+        assertEquals(3, seen.size()); // every pair turns up, so it really is random
+    }
+
+    @Test
+    void anEverythingPoolPicksFromTheWholeMarketAndFixedEventsDoNotChange() {
+        var pool = new MarketEvent("e", "E", MarketEvent.Type.CRASH, 15, 15, List.of(), 1, List.of(), Set.of(), 100, 5);
+        var roll = pool.roll(new java.util.Random(1), ITEMS);
+        assertEquals(1, roll.items().size());
+        assertTrue(ITEMS.contains(roll.items().get(0)));
+        assertEquals(15.0, roll.percent(), 0.0001);
+
+        var fixed = event(List.of("20:00"), Set.of());
+        var same = fixed.roll(new java.util.Random(1), ITEMS);
+        assertTrue(same.allItems());
+        assertEquals(10.0, same.percent(), 0.0001);
+        assertFalse(fixed.random());
     }
 
     @Test

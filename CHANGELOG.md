@@ -42,6 +42,7 @@ All notable changes to Lodestock are listed here. Lodestock uses [semantic versi
 
 ### Scheduled events
 - New `events.yml` (off by default): crashes and surges that run by themselves at times and days you choose, for all items or a list, with a chance, a warning before they start (`warn-minutes`) and a time zone. Two sample events are included. See the README.
+- Random events: `pick: N` chooses that many items at random from an event's `items` (or from every item) each time, and `percent: "10-25"` picks a random size. By default the warning only says that some prices are about to rise or fall; the start message names the items and the size (`reveal-in-warning` in `events.yml`). A third sample event, Ore Lottery, shows it.
 - Whether an event happens is decided when the warning goes out, so players are only warned about events that really happen. Events that were due more than 2 minutes ago are skipped.
 - New `/lodestock events` (shows every event and when it runs next) and `/lodestock events run <id>` (runs one now) commands (`lodestock.admin.events`, operators by default).
 - Events are logged, shown in the Discord webhook and cancellable through the API like any other hand-made change. An event on several items is one log entry.

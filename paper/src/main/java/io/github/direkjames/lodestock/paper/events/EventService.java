@@ -41,16 +41,20 @@ public final class EventService {
     public enum RunResult { UNKNOWN, DONE, FAILED }
 
     /** One line of /lodestock events. */
-    public record Line(MarketEvent event, String next) {}
+    public record Line(MarketEvent event, String percent, String items, String next) {}
+
+    /** The decision made at warning time: whether it happens, and what it will do. */
+    private record Pending(boolean go, MarketEvent.Roll roll) {}
 
     private final LodestockPlugin plugin;
     private volatile boolean enabled;
     private volatile boolean broadcast = true;
+    private volatile boolean revealDetails;
     private volatile ZoneId zone = ZoneId.systemDefault();
     private volatile Map<String, MarketEvent> events = Map.of();
     private BukkitTask task;
-    /** key = event id + the moment it is due. Value: true = it will happen. Kept across reloads. */
-    private final Map<String, Boolean> rolled = new HashMap<>();
+    /** key = event id + the moment it is due. Kept across reloads. */
+    private final Map<String, Pending> rolled = new HashMap<>();
     /** The same keys, once they have been handled, with the time they were handled. */
     private final Map<String, Long> handled = new HashMap<>();
 
@@ -77,6 +81,7 @@ public final class EventService {
         }
         enabled = yaml.getBoolean("enabled", false);
         broadcast = yaml.getBoolean("broadcast", true);
+        revealDetails = yaml.getBoolean("reveal-in-warning", false);
 
         ZoneId newZone = ZoneId.systemDefault();
         String zoneName = yaml.getString("timezone", "").trim();
@@ -103,8 +108,8 @@ public final class EventService {
                 }
                 MarketEventParser.parse(id, one.getValues(false), known, found).ifPresent(event -> {
                     loaded.put(id, event);
-                    if (enabled && event.scheduled() && event.percent() > tax) {
-                        found.add("events." + id + ": a " + PERCENT.format(event.percent()) + "% " + event.type().name().toLowerCase(Locale.ROOT)
+                    if (enabled && event.scheduled() && event.percentMax() > tax) {
+                        found.add("events." + id + ": a " + PERCENT.format(event.percentMax()) + "% " + event.type().name().toLowerCase(Locale.ROOT)
                                 + " is bigger than your " + PERCENT.format(tax) + "% tax, so players who act on the warning can profit. "
                                 + "Keep daily limits on, or lower the percent (see docs/ECONOMY.md)");
                     }
@@ -144,7 +149,11 @@ public final class EventService {
             String next;
             if (!event.scheduled()) next = "by hand only";
             else next = EventTimes.next(event, zone, Instant.now()).map(format::format).orElse("not in the next 8 days");
-            lines.add(new Line(event, next));
+            String percent = event.percentMax() > event.percent()
+                    ? PERCENT.format(event.percent()) + "-" + PERCENT.format(event.percentMax()) : PERCENT.format(event.percent());
+            String pool = event.allItems() ? "all items" : String.join(", ", event.items());
+            String items = event.pick() > 0 ? event.pick() + " random of " + pool : pool;
+            lines.add(new Line(event, percent, items, next));
         }
         return lines;
     }
@@ -157,7 +166,7 @@ public final class EventService {
     public RunResult run(String id) {
         MarketEvent event = events.get(id);
         if (event == null) return RunResult.UNKNOWN;
-        return fire(event) ? RunResult.DONE : RunResult.FAILED;
+        return fire(event, event.roll(ThreadLocalRandom.current(), marketIds())) ? RunResult.DONE : RunResult.FAILED;
     }
 
     public Optional<MarketEvent> find(String id) {
@@ -178,17 +187,18 @@ public final class EventService {
                 if (now.isBefore(due)) {
                     // Warning time: decide now whether it happens, so players are only warned about real events.
                     if (rolled.containsKey(key)) continue;
-                    boolean go = roll(event);
-                    rolled.put(key, go);
-                    if (go && event.warnMinutes() > 0) {
+                    Pending pending = decide(event);
+                    rolled.put(key, pending);
+                    if (pending.go() && event.warnMinutes() > 0) {
                         long minutes = Math.max(1, (long) Math.ceil((due.toEpochMilli() - now.toEpochMilli()) / 60_000.0));
-                        announce("event-warning", event, Placeholder.unparsed("minutes", String.valueOf(minutes)));
+                        announce("event-warning", event, pending.roll(), event.random() && !revealDetails,
+                                Placeholder.unparsed("minutes", String.valueOf(minutes)));
                     }
                 } else {
-                    Boolean go = rolled.remove(key);
-                    if (go == null) go = roll(event); // no warning phase (warn-minutes 0, or the server just started)
+                    Pending pending = rolled.remove(key);
+                    if (pending == null) pending = decide(event); // no warning phase (warn-minutes 0, or the server just started)
                     handled.put(key, now.toEpochMilli());
-                    if (go) fire(event);
+                    if (pending.go()) fire(event, pending.roll());
                 }
             }
         }
@@ -197,17 +207,24 @@ public final class EventService {
         rolled.keySet().removeIf(key -> Long.parseLong(key.substring(key.lastIndexOf('@') + 1)) < cutoff);
     }
 
-    private static boolean roll(MarketEvent event) {
-        return ThreadLocalRandom.current().nextDouble() * 100 < event.chance();
+    /** Rolls the chance, and if it happens, the size and the items. Both are fixed from here on. */
+    private Pending decide(MarketEvent event) {
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        boolean go = random.nextDouble() * 100 < event.chance();
+        return new Pending(go, go ? event.roll(random, marketIds()) : null);
     }
 
-    private boolean fire(MarketEvent event) {
+    private List<String> marketIds() {
+        return plugin.market().items().stream().map(MarketItem::id).toList();
+    }
+
+    private boolean fire(MarketEvent event, MarketEvent.Roll roll) {
         String source = "Event: " + event.name();
         MarketAdmin.Outcome outcome;
         try {
-            outcome = event.allItems()
-                    ? plugin.admin().adjust(source, null, event.signedPercent())
-                    : plugin.admin().adjustItems(source, event.items(), event.signedPercent());
+            outcome = roll.allItems()
+                    ? plugin.admin().adjust(source, null, event.signed(roll.percent()))
+                    : plugin.admin().adjustItems(source, roll.items(), event.signed(roll.percent()));
         } catch (IllegalArgumentException e) {
             plugin.getLogger().warning("Event \"" + event.id() + "\" could not run: " + e.getMessage());
             return false;
@@ -216,17 +233,19 @@ public final class EventService {
             plugin.getLogger().info("Event \"" + event.id() + "\" was cancelled by another plugin.");
             return false;
         }
-        announce("event-start", event);
+        announce("event-start", event, roll, false);
         return true;
     }
 
-    private void announce(String key, MarketEvent event, TagResolver... extra) {
+    /** {@code hide}: say only that some prices are about to change, not which ones or by how much. */
+    private void announce(String key, MarketEvent event, MarketEvent.Roll roll, boolean hide, TagResolver... extra) {
         if (!broadcast) return;
         var messages = plugin.messages();
-        String effectKey = "event-effect-" + event.type().name().toLowerCase(Locale.ROOT) + (event.allItems() ? "-all" : "-items");
-        String items = event.items().stream().map(ItemNames::pretty).collect(Collectors.joining(", "));
+        String type = event.type().name().toLowerCase(Locale.ROOT);
+        String effectKey = hide ? "event-effect-hidden-" + type : "event-effect-" + type + (roll.allItems() ? "-all" : "-items");
+        String items = roll.items().stream().map(ItemNames::pretty).collect(Collectors.joining(", "));
         Component effect = messages.get(effectKey,
-                Placeholder.unparsed("percent", PERCENT.format(event.percent())),
+                Placeholder.unparsed("percent", PERCENT.format(roll.percent())),
                 Placeholder.unparsed("items", items));
         List<TagResolver> tags = new ArrayList<>(List.of(extra));
         tags.add(Placeholder.unparsed("name", event.name()));

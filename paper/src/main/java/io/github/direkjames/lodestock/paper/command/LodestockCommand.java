@@ -657,8 +657,8 @@ public final class LodestockCommand implements TabExecutor {
             msg.send(sender, "events-line",
                     Placeholder.unparsed("id", e.id()),
                     Placeholder.unparsed("type", e.type().name().toLowerCase(Locale.ROOT)),
-                    Placeholder.unparsed("percent", PERCENT.format(e.percent())),
-                    Placeholder.unparsed("items", e.allItems() ? "all items" : String.join(", ", e.items())),
+                    Placeholder.unparsed("percent", line.percent()),
+                    Placeholder.unparsed("items", line.items()),
                     Placeholder.unparsed("chance", PERCENT.format(e.chance())),
                     Placeholder.unparsed("next", line.next()));
         }

@@ -201,6 +201,7 @@ Lodestock can crash or surge prices by itself on a schedule, for a bit of life i
 3. Run `/lodestock reload`, then `/lodestock events` to see each event and when it runs next.
 
 - Players are warned `warn-minutes` before an event starts and told when it does. Whether an event happens is decided when the warning goes out, so players are only warned about real events. An event that was due more than 2 minutes ago (the server was off) is skipped.
+- To keep players guessing, use `pick` (choose that many items at random from the `items` list, or from every item) and a percent range such as `percent: "10-25"`. The items and the size are decided when the warning goes out. By default the warning only says that some prices are about to rise or fall, and the start message says which and by how much (`reveal-in-warning: true` names them in the warning too). Add `chance` and a short `warn-minutes` and nobody knows what comes next.
 - `/lodestock events run <id>` runs an event now, without a warning or a chance roll. It works even when scheduling is off, which makes it handy for testing.
 - Events go through the same path as `/lodestock crash` and `surge`: they are written to the admin log, sent to the Discord webhook (the "By" field reads `Event: <name>`) and can be cancelled by other plugins through the API.
 - Put times in quotes, like `"18:00"`. Without quotes YAML reads it as a number.
