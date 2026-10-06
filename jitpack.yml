@@ -1,2 +1,5 @@
+# JitPack builds only the public API module (lodestock-api), not the whole plugin.
 jdk:
   - openjdk21
+install:
+  - ./gradlew :api:publishToMavenLocal -x test

@@ -6,33 +6,47 @@ The API is stable from Lodestock 1.0.0. `LodestockApi.API_VERSION` is `1`. Withi
 
 ## Add it to your project
 
-Lodestock is built on JitPack. Use the tag of the release you want (for example `v1.0.0`).
+Lodestock's API is published through [JitPack](https://jitpack.io/#direkjames/Lodestock). Replace `<tag>` with the release you want, for example `v1.0.0` (the exact tag name is shown on the JitPack page).
 
-**Gradle (Kotlin)**
+**Gradle (Kotlin DSL, `build.gradle.kts`)**
 ```kotlin
 repositories {
     maven("https://jitpack.io")
 }
 dependencies {
-    compileOnly("com.github.direkjames.Lodestock:lodestock-api:<tag>")
+    compileOnly("com.github.direkjames:Lodestock:<tag>")
 }
 ```
 
-**Maven**
-```xml
-<repository>
-  <id>jitpack.io</id>
-  <url>https://jitpack.io</url>
-</repository>
-<dependency>
-  <groupId>com.github.direkjames.Lodestock</groupId>
-  <artifactId>lodestock-api</artifactId>
-  <version>TAG</version>
-  <scope>provided</scope>
-</dependency>
+**Gradle (Groovy, `build.gradle`)**
+```groovy
+repositories {
+    maven { url 'https://jitpack.io' }
+}
+dependencies {
+    compileOnly 'com.github.direkjames:Lodestock:<tag>'
+}
 ```
 
-> The exact JitPack coordinates are shown on the project's page at jitpack.io after the first build of a tag. If the line above does not resolve, copy the one from that page.
+**Maven (`pom.xml`)**
+```xml
+<repositories>
+  <repository>
+    <id>jitpack.io</id>
+    <url>https://jitpack.io</url>
+  </repository>
+</repositories>
+<dependencies>
+  <dependency>
+    <groupId>com.github.direkjames</groupId>
+    <artifactId>Lodestock</artifactId>
+    <version>&lt;tag&gt;</version>
+    <scope>provided</scope>
+  </dependency>
+</dependencies>
+```
+
+The dependency contains only the API (`io.github.direkjames.lodestock.api`), not the plugin.
 
 Always use `compileOnly` / `provided`. Do not shade the API into your jar.
 
