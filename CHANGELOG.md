@@ -2,6 +2,18 @@
 
 All notable changes to Lodestock are listed here. Lodestock uses [semantic versioning](https://semver.org/).
 
+## Unreleased
+
+### Market
+- Price drift: prices slowly move back toward their base price, so crashes and surges fade.
+- Stock regeneration: stock moves back toward the starting stock (low stock refills, piled-up stock drains).
+- The server's offline time is caught up on startup (up to 24 hours by default).
+- Prices and stock set by an admin are left alone until the next trade on that item.
+- New `recovery`, `drift` and `regen` settings in `config.yml`, and optional `drift` / `regen` per item in `items.yml`.
+
+### Storage
+- The database file is upgraded automatically (schema version 2). Existing data is kept.
+
 ## 0.2.0-beta.1 - 2026-10-06
 
 First public beta. Lodestock is a rework of [OreMarket](https://github.com/OllieJW/Ore-Market) by OllieJW, rebuilt for modern Minecraft with the original author's permission.

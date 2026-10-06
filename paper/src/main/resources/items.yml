@@ -9,6 +9,8 @@
 #   allow-sell   false = players can't sell it (optional)
 #   slot         pin the item to an exact slot in the GUI, counting from 0 (optional)
 #   page         the page for that slot, default 1 (optional)
+#   drift        false = this item's price never drifts back toward base-price (optional)
+#   regen        false = this item's stock never regenerates (optional)
 
 coal:
   base-price: 3.0

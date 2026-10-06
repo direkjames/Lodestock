@@ -3,6 +3,7 @@ package io.github.direkjames.lodestock.paper.storage;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -32,6 +33,7 @@ public final class Database {
 
     private static final Job STOP = new Job("stop", c -> {});
     private static final int MAX_BATCH = 200;
+    private static final int SCHEMA_VERSION = 2;
 
     private final Logger log;
     private final Connection connection;
@@ -54,6 +56,7 @@ public final class Database {
                 st.execute("PRAGMA busy_timeout=5000");
             }
             createTables(opened);
+            migrate(opened);
             opened.setAutoCommit(false);
         } catch (SQLException e) {
             try {
@@ -81,6 +84,37 @@ public final class Database {
             st.execute("CREATE INDEX IF NOT EXISTS idx_trades_time ON trades (time)");
             st.execute("CREATE TABLE IF NOT EXISTS admin_log (id INTEGER PRIMARY KEY AUTOINCREMENT, time INTEGER NOT NULL, "
                     + "who TEXT NOT NULL, action TEXT NOT NULL, details TEXT NOT NULL)");
+        }
+    }
+
+    /** Upgrades an older database file to the current layout. Runs once at startup. */
+    private static void migrate(Connection c) throws SQLException {
+        int version = 1;
+        try (Statement st = c.createStatement();
+             ResultSet rs = st.executeQuery("SELECT meta_value FROM meta WHERE meta_key = 'schema_version'")) {
+            if (rs.next()) {
+                try {
+                    version = Integer.parseInt(rs.getString(1).trim());
+                } catch (NumberFormatException ignored) {
+                    version = 1;
+                }
+            }
+        }
+        if (version >= SCHEMA_VERSION) return;
+        c.setAutoCommit(false);
+        try (Statement st = c.createStatement()) {
+            if (version < 2) {
+                // 0.3.0: admin-set prices and stock are held back from drift / regeneration
+                st.execute("ALTER TABLE items ADD COLUMN price_held INTEGER NOT NULL DEFAULT 0");
+                st.execute("ALTER TABLE items ADD COLUMN stock_held INTEGER NOT NULL DEFAULT 0");
+            }
+            st.execute("UPDATE meta SET meta_value = '" + SCHEMA_VERSION + "' WHERE meta_key = 'schema_version'");
+            c.commit();
+        } catch (SQLException e) {
+            c.rollback();
+            throw e;
+        } finally {
+            c.setAutoCommit(true);
         }
     }
 

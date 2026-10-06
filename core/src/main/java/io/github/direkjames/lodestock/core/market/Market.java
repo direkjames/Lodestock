@@ -16,12 +16,19 @@ import java.util.ArrayList;
  */
 public final class Market {
     private final MarketSettings settings;
+    private final RecoverySettings recovery;
     private final MarketStorage storage;
     private final Map<String, MarketItem> items = new LinkedHashMap<>();
     private final Map<String, ItemState> states = new HashMap<>();
 
     public Market(MarketSettings settings, Collection<MarketItem> itemList, MarketStorage storage) {
+        this(settings, RecoverySettings.OFF, itemList, storage);
+    }
+
+    public Market(MarketSettings settings, RecoverySettings recovery,
+                  Collection<MarketItem> itemList, MarketStorage storage) {
         this.settings = settings;
+        this.recovery = recovery;
         this.storage = storage;
         for (MarketItem item : itemList) {
             items.put(item.id(), item);
@@ -129,6 +136,7 @@ public final class Market {
     }
 
     public synchronized MarketSettings settings() { return settings; }
+    public synchronized RecoverySettings recovery() { return recovery; }
 
     /** Admin: sets the current price. Must be at least the price floor. */
     public synchronized void setPrice(String id, double price) {
@@ -136,7 +144,7 @@ public final class Market {
         if (price < settings.priceFloor()) {
             throw new IllegalArgumentException("price must be at least " + settings.priceFloor());
         }
-        update(id, new ItemState(price, s.stock()));
+        update(id, new ItemState(price, s.stock(), true, s.stockHeld())); // drift leaves it alone until the next trade
     }
 
     /** Admin: sets the current stock, from 0 up to the item's max stock. */
@@ -146,7 +154,7 @@ public final class Market {
         if (stock < 0 || stock > item.maxStock()) {
             throw new IllegalArgumentException("stock must be from 0 to " + item.maxStock());
         }
-        update(id, new ItemState(s.price(), stock));
+        update(id, new ItemState(s.price(), stock, s.priceHeld(), true)); // regeneration leaves it alone until the next trade
     }
 
     /** Admin: back to the base price and starting stock. */
@@ -179,10 +187,41 @@ public final class Market {
         double factor = 1 + percent / 100.0;
         for (String target : targets) {
             ItemState s = states.get(target);
-            states.put(target, new ItemState(Math.max(settings.priceFloor(), s.price() * factor), s.stock()));
+            // A crash or surge is an event that fades, so the price is free to drift again.
+            states.put(target, new ItemState(Math.max(settings.priceFloor(), s.price() * factor),
+                    s.stock(), false, s.stockHeld()));
         }
         storage.saveAll(new HashMap<>(states));
         return targets.size();
+    }
+
+    /**
+     * Lets prices drift toward their base price and stock regenerate toward the starting stock,
+     * as if {@code steps} recovery intervals had passed. Items with an admin-set (held) value, or
+     * with drift / regen turned off, are left alone. Saves only what changed.
+     * @return how many items changed
+     */
+    public synchronized int applyRecovery(int steps) {
+        if (steps < 1 || !recovery.active()) return 0;
+        Map<String, ItemState> changed = new HashMap<>();
+        for (MarketItem item : items.values()) {
+            ItemState s = states.get(item.id());
+            double price = s.price();
+            int stock = s.stock();
+            if (recovery.driftEnabled() && item.drift() && !s.priceHeld()) {
+                price = Recovery.driftPrice(price, item.basePrice(), recovery.driftPercent(), steps, settings.priceFloor());
+            }
+            if (recovery.regenEnabled() && item.regen() && !s.stockHeld()) {
+                stock = Recovery.regenStock(stock, item.startStock(), item.maxStock(), recovery.regenPercent(), steps);
+            }
+            if (price != s.price() || stock != s.stock()) {
+                ItemState next = new ItemState(price, stock, s.priceHeld(), s.stockHeld());
+                states.put(item.id(), next);
+                changed.put(item.id(), next);
+            }
+        }
+        if (!changed.isEmpty()) storage.saveAll(changed);
+        return changed.size();
     }
 
     /** Writes everything to storage. */

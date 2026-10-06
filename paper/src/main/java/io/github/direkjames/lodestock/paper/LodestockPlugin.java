@@ -11,6 +11,7 @@ import io.github.direkjames.lodestock.paper.gui.GuiLayoutLoader;
 import io.github.direkjames.lodestock.paper.gui.MenuListener;
 import io.github.direkjames.lodestock.paper.gui.MenuService;
 import io.github.direkjames.lodestock.paper.log.TradeLog;
+import io.github.direkjames.lodestock.paper.recovery.RecoveryTask;
 import io.github.direkjames.lodestock.paper.storage.Database;
 import io.github.direkjames.lodestock.paper.storage.SqlMarketStorage;
 import io.github.direkjames.lodestock.paper.trade.TradeService;
@@ -29,6 +30,7 @@ public final class LodestockPlugin extends JavaPlugin {
     private Database database;
     private SqlMarketStorage storage;
     private TradeLog tradeLog;
+    private RecoveryTask recovery;
     private Messages messages;
     private Market market;
     private EconomyHook economy;
@@ -66,6 +68,9 @@ public final class LodestockPlugin extends JavaPlugin {
             return;
         }
 
+        recovery = new RecoveryTask(this, database);
+        recovery.start();
+
         PluginCommand command = Objects.requireNonNull(getCommand("lodestock"));
         LodestockCommand handler = new LodestockCommand(this);
         command.setExecutor(handler);
@@ -85,6 +90,7 @@ public final class LodestockPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (recovery != null) recovery.stop();
         if (market != null) market.flush();
         if (database != null) database.close(); // writes everything still queued, then closes the file
         getLogger().info("Lodestock disabled.");
@@ -100,11 +106,12 @@ public final class LodestockPlugin extends JavaPlugin {
             messages.reload();
 
             if (market != null) market.flush();
-            market = new Market(loaded.settings(), loaded.items(), storage);
+            market = new Market(loaded.settings(), loaded.recovery(), loaded.items(), storage);
             layout = newLayout;
             warnings = List.copyOf(found);
             getLogger().info("Loaded " + loaded.items().size() + " market items.");
 
+            if (recovery != null) recovery.reschedule();
             if (menus != null) menus.closeAll();
             return true;
         } catch (IllegalArgumentException e) {

@@ -23,6 +23,25 @@ sell-all:
   # Time before the same player can sell everything again. 0 turns the cooldown off.
   cooldown-seconds: 30
 
+# The market heals itself over time. Every interval, prices drift back toward their base price
+# and stock moves back toward the starting stock. A crash, a surge or a heavy sell-off fades away.
+recovery:
+  # Minutes between recovery steps (minimum 1).
+  interval-minutes: 10
+  # Also apply the time the server was offline, up to this many hours. 0 turns catch-up off.
+  catch-up-hours: 24
+
+drift:
+  enabled: true
+  # Each step, the price closes this percent of its gap to the base price (0 to 100).
+  percent: 2.0
+
+regen:
+  enabled: true
+  # Each step, stock moves this percent of max-stock toward start-stock, at least 1 item (0 to 100).
+  # Low stock refills, and stock piled up by sellers slowly drains.
+  percent: 2.0
+
 admin:
   # Announce /lodestock crash and /lodestock surge to the whole server.
   broadcast: true

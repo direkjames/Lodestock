@@ -2,6 +2,7 @@ package io.github.direkjames.lodestock.paper.config;
 
 import io.github.direkjames.lodestock.core.market.MarketItem;
 import io.github.direkjames.lodestock.core.market.MarketSettings;
+import io.github.direkjames.lodestock.core.market.RecoverySettings;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -24,7 +25,8 @@ public final class ConfigLoader {
     /** An item pinned to an exact GUI slot. {@code page} starts at 1. */
     public record Pin(int slot, int page) {}
 
-    public record Loaded(MarketSettings settings, List<MarketItem> items, Map<String, Pin> pins) {}
+    public record Loaded(MarketSettings settings, RecoverySettings recovery, List<MarketItem> items,
+                         Map<String, Pin> pins) {}
 
     /** @throws IllegalArgumentException if the general settings are invalid */
     public static Loaded load(JavaPlugin plugin, ConfigWarnings warn) {
@@ -38,6 +40,8 @@ public final class ConfigLoader {
         if (settings.hasBuySellLoop()) {
             warn.add("tax-percent is too low for your multiplier: players can make free money by buying and selling in a loop. Raise tax-percent.");
         }
+
+        RecoverySettings recovery = loadRecovery(cfg, warn);
 
         YamlConfiguration itemsCfg = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "items.yml"));
         List<MarketItem> items = new ArrayList<>();
@@ -70,7 +74,9 @@ public final class ConfigLoader {
                         section.getInt("start-stock"),
                         section.getInt("max-stock"),
                         section.getBoolean("allow-buy", true),
-                        section.getBoolean("allow-sell", true)));
+                        section.getBoolean("allow-sell", true),
+                        section.getBoolean("drift", true),
+                        section.getBoolean("regen", true)));
             } catch (IllegalArgumentException e) {
                 warn.add("items.yml: " + e.getMessage() + " - skipped.");
                 continue;
@@ -86,6 +92,35 @@ public final class ConfigLoader {
                 }
             }
         }
-        return new Loaded(settings, items, pins);
+        return new Loaded(settings, recovery, items, pins);
+    }
+
+    /** Bad recovery values are replaced with the defaults and reported, they never stop the plugin. */
+    private static RecoverySettings loadRecovery(FileConfiguration cfg, ConfigWarnings warn) {
+        RecoverySettings d = RecoverySettings.DEFAULT;
+        int interval = cfg.getInt("recovery.interval-minutes", d.intervalMinutes());
+        if (interval < 1) {
+            warn.add("config.yml: recovery.interval-minutes must be at least 1, using " + d.intervalMinutes() + ".");
+            interval = d.intervalMinutes();
+        }
+        int catchUp = cfg.getInt("recovery.catch-up-hours", d.catchUpHours());
+        if (catchUp < 0) {
+            warn.add("config.yml: recovery.catch-up-hours can't be negative, using 0 (no catch-up).");
+            catchUp = 0;
+        }
+        catchUp = Math.min(catchUp, 24 * 30);
+        double driftPercent = cfg.getDouble("drift.percent", d.driftPercent());
+        if (driftPercent < 0 || driftPercent > 100) {
+            warn.add("config.yml: drift.percent must be from 0 to 100, using " + d.driftPercent() + ".");
+            driftPercent = d.driftPercent();
+        }
+        double regenPercent = cfg.getDouble("regen.percent", d.regenPercent());
+        if (regenPercent < 0 || regenPercent > 100) {
+            warn.add("config.yml: regen.percent must be from 0 to 100, using " + d.regenPercent() + ".");
+            regenPercent = d.regenPercent();
+        }
+        return new RecoverySettings(interval, catchUp,
+                cfg.getBoolean("drift.enabled", d.driftEnabled()), driftPercent,
+                cfg.getBoolean("regen.enabled", d.regenEnabled()), regenPercent);
     }
 }

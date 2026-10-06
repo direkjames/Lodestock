@@ -115,6 +115,12 @@ Everything lives in `plugins/Lodestock/`:
 | `sell-all.confirm` | `true` | Require `/lodestock sellall confirm` |
 | `sell-all.confirm-seconds` | `15` | How long the confirmation stays valid (minimum 5) |
 | `sell-all.cooldown-seconds` | `30` | Time before the same player can sell everything again (0 turns it off) |
+| `recovery.interval-minutes` | `10` | Minutes between recovery steps (minimum 1) |
+| `recovery.catch-up-hours` | `24` | Also apply the time the server was offline, up to this many hours (0 turns it off) |
+| `drift.enabled` | `true` | Prices drift back toward their base price |
+| `drift.percent` | `2.0` | Each step, the price closes this percent of its gap to the base price |
+| `regen.enabled` | `true` | Stock moves back toward the starting stock |
+| `regen.percent` | `2.0` | Each step, stock moves this percent of max-stock toward start-stock (at least 1 item) |
 | `admin.broadcast` | `true` | Announce crash and surge to everyone |
 | `history.keep-days` | `30` | Delete trade history older than this at startup (0 keeps everything) |
 
@@ -140,6 +146,8 @@ diamond:
 | `allow-sell` | no | `false` means players can't sell it |
 | `slot` | no | Pin the item to an exact slot in the window (counting from 0) |
 | `page` | no | The page for that slot (default 1) |
+| `drift` | no | `false` means this item's price never drifts back toward its base price |
+| `regen` | no | `false` means this item's stock never regenerates |
 
 - **The item ID is also how prices are saved.** If you rename a key, that item starts over at its base price and stock.
 - Each item can only appear once. Duplicates and unknown item IDs are skipped with a warning.
@@ -171,6 +179,9 @@ The page buttons only appear when there is a page to go to. Bad slots and overla
 - **Selling** pays the current price minus `tax-percent`. It raises the stock by 1 and lowers the price a little.
 - Buying stops when the stock hits 0. Selling stops when the stock reaches `max-stock`.
 - Bulk trades work out the price change after every single item, so buying 64 costs more than 64 times the first price.
+- **Recovery:** every `recovery.interval-minutes`, prices drift back toward `base-price` and stock moves back toward `start-stock`, so crashes, surges and heavy selling fade on their own. The pull is stronger when the price is far from the base and gentle when it is close.
+- Time the server was offline is caught up on startup (up to `recovery.catch-up-hours`).
+- A price set with `/lodestock setprice` (or stock set with `setstock`) is left alone until the next trade on that item. `crash` and `surge` do fade.
 - If the economy plugin refuses a payment (for example a money cap), the trade is cancelled and nothing is taken.
 
 ## Data and history

@@ -26,9 +26,9 @@ public final class SqlMarketStorage implements MarketStorage {
     private static Map<String, ItemState> loadAll(Connection c) throws SQLException {
         Map<String, ItemState> map = new HashMap<>();
         try (Statement st = c.createStatement();
-             ResultSet rs = st.executeQuery("SELECT id, price, stock FROM items")) {
+             ResultSet rs = st.executeQuery("SELECT id, price, stock, price_held, stock_held FROM items")) {
             while (rs.next()) {
-                map.put(rs.getString(1), new ItemState(rs.getDouble(2), rs.getInt(3)));
+                map.put(rs.getString(1), new ItemState(rs.getDouble(2), rs.getInt(3), rs.getInt(4) != 0, rs.getInt(5) != 0));
             }
         }
         return map;
@@ -58,11 +58,14 @@ public final class SqlMarketStorage implements MarketStorage {
 
     private static void upsert(Connection c, String id, ItemState state) throws SQLException {
         try (PreparedStatement ps = c.prepareStatement(
-                "INSERT INTO items (id, price, stock) VALUES (?, ?, ?) "
-                        + "ON CONFLICT(id) DO UPDATE SET price = excluded.price, stock = excluded.stock")) {
+                "INSERT INTO items (id, price, stock, price_held, stock_held) VALUES (?, ?, ?, ?, ?) "
+                        + "ON CONFLICT(id) DO UPDATE SET price = excluded.price, stock = excluded.stock, "
+                        + "price_held = excluded.price_held, stock_held = excluded.stock_held")) {
             ps.setString(1, id);
             ps.setDouble(2, state.price());
             ps.setInt(3, state.stock());
+            ps.setInt(4, state.priceHeld() ? 1 : 0);
+            ps.setInt(5, state.stockHeld() ? 1 : 0);
             ps.executeUpdate();
         }
     }

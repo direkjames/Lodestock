@@ -102,4 +102,48 @@ class DatabaseTest {
         assertEquals("SELL", entries.get(0).action());
         db.close();
     }
+
+    @Test
+    void heldFlagsSurviveARestart() throws Exception {
+        Database db = open();
+        new SqlMarketStorage(db).save("diamond", new ItemState(5.0, 3, true, false));
+        db.close();
+
+        Database again = open();
+        ItemState state = new SqlMarketStorage(again).load("diamond").orElseThrow();
+        assertEquals(true, state.priceHeld());
+        assertEquals(false, state.stockHeld());
+        again.close();
+    }
+
+    @Test
+    void anOldVersion1DatabaseIsUpgradedWithoutLosingData() throws Exception {
+        String url = "jdbc:sqlite:" + dir.resolve("test.db").toAbsolutePath();
+        try (java.sql.Connection c = java.sql.DriverManager.getConnection(url);
+             java.sql.Statement st = c.createStatement()) {
+            st.execute("CREATE TABLE meta (meta_key TEXT PRIMARY KEY, meta_value TEXT NOT NULL)");
+            st.execute("INSERT INTO meta VALUES ('schema_version', '1')");
+            st.execute("CREATE TABLE items (id TEXT PRIMARY KEY, price REAL NOT NULL, stock INTEGER NOT NULL)");
+            st.execute("INSERT INTO items VALUES ('gold_ingot', 21.5, 40)");
+        }
+
+        Database db = open();
+        ItemState state = new SqlMarketStorage(db).load("gold_ingot").orElseThrow();
+        assertEquals(21.5, state.price(), 1e-9);
+        assertEquals(40, state.stock());
+        assertEquals(false, state.priceHeld());
+        String version = db.query(c -> {
+            try (java.sql.Statement st = c.createStatement();
+                 java.sql.ResultSet rs = st.executeQuery("SELECT meta_value FROM meta WHERE meta_key = 'schema_version'")) {
+                rs.next();
+                return rs.getString(1);
+            }
+        }).join();
+        assertEquals("2", version);
+        db.close();
+
+        Database third = open(); // opening an already upgraded file must work too
+        assertEquals(40, new SqlMarketStorage(third).load("gold_ingot").orElseThrow().stock());
+        third.close();
+    }
 }
