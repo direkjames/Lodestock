@@ -2,7 +2,7 @@
 
 A stock market for ores in Minecraft. Prices move with every trade, so what players buy and sell actually matters. Built for Paper and Purpur servers (OneBlock servers especially).
 
-> **Status: early development (0.1.0-alpha.1).** Lodestock is not publicly released yet. Expect small bugs and config changes between alpha versions.
+> **Status: public beta (0.2.0-beta.1).** All planned features are in, but expect small bugs and the occasional config change before 1.0.0.
 
 Lodestock is a rework of **[OreMarket](https://github.com/OllieJW/Ore-Market) by OllieJW**, rebuilt for modern Minecraft with the original author's permission. Thank you, OllieJW, for the idea and the original plugin.
 
@@ -192,9 +192,11 @@ The page buttons only appear when there is a page to go to. Bad slots and overla
 
 ## Roadmap
 
-1. **Done:** the Paper and Purpur plugin, with crash-safe SQLite storage (this version).
-2. **Next:** performance checks and extra features such as price history and daily limits.
-3. **Later:** Fabric and NeoForge versions.
+1. **Done:** the Paper and Purpur plugin with crash-safe SQLite storage (the current beta).
+2. **Next:** extra features and performance checks, such as price history and daily limits.
+3. **Then:** polish and the 1.0.0 release.
+
+Fabric and NeoForge versions are postponed.
 
 ## Building from source
 
