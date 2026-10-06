@@ -12,6 +12,14 @@ All notable changes to Lodestock are listed here. Lodestock uses [semantic versi
 - New permission `lodestock.chart` (everyone by default).
 - New `price-history` settings in `config.yml`.
 
+### Leaderboards
+- New `/lodestock top <board> [item] [24h|7d|30d|all]` command (`lodestock.top`, everyone by default) with five boards: `sellers` (money earned), `spenders` (money spent), `active` (trades), `biggest` (single biggest trade) and `net` (earned minus spent). Add an item to rank one item.
+- The `net` board needs `lodestock.top.net` (operators by default), because a public money board encourages farming.
+- Lifetime stats (one row per player and item) are saved separately and never deleted, so `all` works even after `history.keep-days` removes old trades. The database upgrades itself (schema version 5) and builds the stats from the trade history you already have.
+- PlaceholderAPI support (optional): per-player numbers such as `%lodestock_earned%` and `%lodestock_net_formatted%`, and leaderboard lines such as `%lodestock_top_sellers_7d_1_name%` for holograms. Leaderboard placeholders read a cache and never wait for the database. See the README.
+- `/lodestock economy` now also shows money created per active player and compares with the period before.
+- New `leaderboards` settings in `config.yml`.
+
 ### Economy safety
 - New guide, [docs/ECONOMY.md](docs/ECONOMY.md), with three ready-to-copy price presets (conservative, balanced, generous) in `docs/presets/`, the config lines that go with them, and advice by game mode.
 - New `/lodestock audit` command (`lodestock.admin.audit`): checks for buy-and-sell loops (tested with real trades of many sizes, up to each item's max stock), crafting loops (ingot and block, raw ore and ingot, and similar pairs), a zero or very low tax, a very high multiplier, a very low price floor, and recovery with no daily limits. It also estimates the most money the market can pay out per day.
@@ -20,7 +28,7 @@ All notable changes to Lodestock are listed here. Lodestock uses [semantic versi
 - The default `price-floor` in a new `config.yml` is now `0.25` (was `0.01`), so an item cannot crash to almost nothing. Existing config files are not changed.
 
 ### Storage
-- The database file is upgraded automatically (schema version 4, adds the price history table).
+- The database file is upgraded automatically (schema version 5: adds the price history table and the lifetime stats table).
 
 ### Upgrading from 0.3.0-beta.1
 Everything works with defaults. To see and change the new settings, add this to your `config.yml`:
@@ -30,6 +38,14 @@ price-history:
   enabled: true
   interval-minutes: 10   # minutes between samples
   keep-days: 14          # delete samples older than this (0 = keep everything)
+```
+
+The leaderboards work with no config changes. To change how many lines they show or how often placeholders refresh, add this to your `config.yml`:
+
+```yaml
+leaderboards:
+  size: 10             # lines shown by /lodestock top (1 to 50)
+  cache-seconds: 30    # how often placeholders refresh their saved copy (minimum 5)
 ```
 
 The new commands and warnings work with no config changes. If you want the safer defaults, raise `price-floor` to about 5 to 10 percent of your cheapest item (the audit tells you when it is too low). The wording of the audit and economy messages falls back to built-in English text.

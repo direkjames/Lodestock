@@ -14,6 +14,7 @@ Lodestock is a rework of **[OreMarket](https://github.com/OllieJW/Ore-Market) by
 - `/lodestock sellhand` and `/lodestock sellall` for fast selling, with a confirmation step and a cooldown on `sellall`.
 - A fully configurable window: title, rows, item slots, fill item, page buttons, and items pinned to exact slots.
 - Admin tools: set prices and stock, reset, market crash and surge, stats, and a per-player trade history.
+- Leaderboards (`/lodestock top`): top sellers, biggest spenders, most active traders, biggest single trade and net earners, for the last 24 hours, 7 days, 30 days or all time, for every item or one item. PlaceholderAPI placeholders for holograms and scoreboards.
 - Economy safety tools: `/lodestock audit` finds settings that let players make free money, `/lodestock economy` shows how much money the market created, and [a guide with ready-made price presets](docs/ECONOMY.md) for low, balanced and high-income servers.
 - Prices that drift back toward their base price and stock that regenerates, so crashes and surges fade on their own (even while the server is off).
 - Price history: press Q on an item for a bar chart of its price (24 hours, 7 days or all time), with a 24h trend line in each item's description and `/lodestock chart` for chat.
@@ -29,6 +30,7 @@ Lodestock is a rework of **[OreMarket](https://github.com/OllieJW/Ore-Market) by
 - **Paper or Purpur** 1.21.11, 26.1, 26.2 or 26.3. Other Paper forks may work, but they are untested.
 - **Java**: whatever your Minecraft version needs (Java 21 for 1.21.11, Java 25 for 26.x).
 - **[Vault](https://www.spigotmc.org/resources/vault.34315/)** and an economy plugin that works with it, such as EssentialsX. Lodestock does not have its own money.
+- Optional: **[PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/)** for the leaderboard and stats placeholders.
 
 ## Installation
 
@@ -60,6 +62,7 @@ Only **plain** items can be sold. Renamed, enchanted or otherwise modified items
 | `/lodestock price <item>` | Buy price, sell price and stock of one item | `lodestock.use` |
 | `/lodestock limits` | Show what you can still buy and sell today | `lodestock.use` |
 | `/lodestock chart <item> [24h\|7d\|all]` | Price history as a small text chart with low, high, average and change | `lodestock.chart` |
+| `/lodestock top <board> [item] [24h\|7d\|30d\|all]` | Leaderboards: `sellers`, `spenders`, `active`, `biggest` and `net` (net needs `lodestock.top.net`) | `lodestock.top` |
 | `/lodestock sellhand` | Sell the whole stack in your main hand | `lodestock.sell.hand` |
 | `/lodestock sellall` | Show what everything in your inventory would sell for | `lodestock.sell.all` |
 | `/lodestock sellall confirm` | Confirm the sale (within 15 seconds) | `lodestock.sell.all` |
@@ -82,7 +85,7 @@ All of these also work from the console.
 | `/lodestock stats` | Biggest price movers and lowest stock | `lodestock.admin.stats` |
 | `/lodestock history <player> [page]` | A player's trades, newest first | `lodestock.admin.history` |
 | `/lodestock audit` | Checks your settings and prices for ways to make free money (buy-and-sell loops, crafting loops, risky values) and estimates the most the market can pay out per day | `lodestock.admin.audit` |
-| `/lodestock economy [24h\|7d\|30d]` | Money the players spent and the market paid out, the money created, the biggest net earners and the items that paid out the most | `lodestock.admin.economy` |
+| `/lodestock economy [24h\|7d\|30d]` | Money the players spent and the market paid out, the money created (per active player, and compared with the period before), the biggest net earners and the items that paid out the most | `lodestock.admin.economy` |
 | `/lodestock reload` | Reload all config files and show any problems found | `lodestock.admin.reload` |
 
 `crash` and `surge` announce themselves to the whole server unless you set `admin.broadcast: false`. Admin actions are recorded in the database.
@@ -97,6 +100,8 @@ All of these also work from the console.
 | `lodestock.sell.hand` | everyone | `/lodestock sellhand` |
 | `lodestock.sell.all` | everyone | `/lodestock sellall` |
 | `lodestock.chart` | everyone | Price history charts (`/lodestock chart` and Q in the market window) |
+| `lodestock.top` | everyone | `/lodestock top` |
+| `lodestock.top.net` | op | The net earners board |
 | `lodestock.sell.*` | nobody | All four selling permissions |
 | `lodestock.ore.<item>` | everyone | Trade that item, for example `lodestock.ore.diamond`. Created automatically for every item in `items.yml` |
 | `lodestock.ore.*` | everyone | Trade every item |
@@ -109,6 +114,65 @@ Each selling method has its own permission, so you can, for example, allow the w
 ### Per-item permissions
 
 Every item in `items.yml` gets its own permission automatically, `lodestock.ore.<item>` (for example `lodestock.ore.diamond` or `lodestock.ore.raw_iron`). **Everyone has all of them by default**, so nothing changes until you take one away. To lock an item, set its permission to `false` for a group or player in your permissions plugin, or set `lodestock.ore.*` to `false` and give back only the items you want. Locked items are shown greyed out in the window, and can't be bought or sold. The permissions are created when the server starts and on `/lodestock reload`, so a new item is covered straight away.
+
+## Leaderboards and placeholders
+
+### In chat
+
+`/lodestock top <board> [item] [24h|7d|30d|all]` shows a leaderboard (7 days by default). Add an item to rank one item only, for example `/lodestock top sellers diamond 30d`.
+
+| Board | Ranks players by |
+|---|---|
+| `sellers` | Money earned from selling |
+| `spenders` | Money spent buying |
+| `active` | Number of trades |
+| `biggest` | Their single biggest trade (shows what it was) |
+| `net` | Money earned minus money spent. **Operators only by default**, see below |
+
+`24h`, `7d` and `30d` look at the trade history, so they can only go back as far as `history.keep-days` (30 by default). `all` uses lifetime stats that are kept separately and are **never deleted**, so all-time boards survive the history cleanup. When you upgrade, the stats are built from the trade history you already have.
+
+The net board is for admins by default, because a public money board encourages farming. To open it up, give players `lodestock.top.net`.
+
+### PlaceholderAPI
+
+If [PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/) is installed, Lodestock registers these placeholders by itself. It works fine without PlaceholderAPI.
+
+**Per player** (all time, as plain numbers, so other plugins can rank them). Add `_formatted` at the end for money in your server's currency format, and `_<item>` for one item.
+
+| Placeholder | Value |
+|---|---|
+| `%lodestock_earned%` | Money earned from selling |
+| `%lodestock_spent%` | Money spent buying |
+| `%lodestock_net%` | Earned minus spent |
+| `%lodestock_trades%` | Number of trades |
+| `%lodestock_items_sold%` / `%lodestock_items_bought%` | Items sold or bought |
+| `%lodestock_best_trade%` | Their single biggest trade |
+| `%lodestock_earned_diamond%`, `%lodestock_items_sold_diamond%`, ... | The same, for one item |
+| `%lodestock_net_formatted%` | Money with the currency format, such as `$1,234.50` |
+
+**Leaderboard lines** (for holograms, scoreboards and signs): `%lodestock_top_<board>_<period>_<rank>_<field>%`, and for one item `%lodestock_top_<item>_<board>_<period>_<rank>_<field>%`.
+
+- `<board>`: `sellers`, `spenders`, `active`, `biggest` or `net`
+- `<period>`: `24h`, `7d`, `30d` or `all`
+- `<rank>`: 1 to 50
+- `<field>`: `name`, `value` (plain number), `formatted` (currency format), and for the biggest board also `action`, `amount` and `item`
+
+Examples: `%lodestock_top_sellers_7d_1_name%`, `%lodestock_top_sellers_7d_1_formatted%`, `%lodestock_top_iron_ingot_sellers_all_3_name%`. An empty rank shows `-`.
+
+Leaderboard placeholders read a saved copy that refreshes every `leaderboards.cache-seconds` (30 by default), so a hologram that updates every second adds no load to the server or the database.
+
+### Holograms
+
+Lodestock does not draw holograms itself. Use a hologram plugin that understands PlaceholderAPI, such as [DecentHolograms](https://www.spigotmc.org/resources/decentholograms-1-8-1-21-1-papi-support-no-dependencies.96927/) or [FancyHolograms](https://modrinth.com/plugin/fancyholograms) (with its PlaceholderAPI support). Put the placeholders straight into the hologram lines, one line per rank. For example, a weekly top-3 sellers hologram:
+
+```
+&6&lTop sellers (7 days)
+&e1. &f%lodestock_top_sellers_7d_1_name% &7- &a%lodestock_top_sellers_7d_1_formatted%
+&e2. &f%lodestock_top_sellers_7d_2_name% &7- &a%lodestock_top_sellers_7d_2_formatted%
+&e3. &f%lodestock_top_sellers_7d_3_name% &7- &a%lodestock_top_sellers_7d_3_formatted%
+```
+
+You do **not** need ajLeaderboards for this. If you already use it, point it at a per-player placeholder such as `%lodestock_earned%` and it builds its own daily, weekly and monthly boards from that number.
 
 ## Protecting your economy
 
@@ -158,6 +222,8 @@ Everything lives in `plugins/Lodestock/`:
 | `limits.daily-sell` | `0` | The most one player can sell of one item per day (0 = no limit) |
 | `limits.reset-time` | `"00:00"` | When a new limit day starts, as `HH:mm` |
 | `limits.timezone` | `"server"` | Time zone for the reset: `server`, or a name such as `Asia/Manila` or `UTC` |
+| `leaderboards.size` | `10` | How many lines `/lodestock top` shows (1 to 50) |
+| `leaderboards.cache-seconds` | `30` | How often the leaderboard placeholders refresh their saved copy (minimum 5) |
 | `admin.broadcast` | `true` | Announce crash and surge to everyone |
 | `history.keep-days` | `30` | Delete trade history older than this at startup (0 keeps everything) |
 
@@ -231,7 +297,7 @@ The page buttons only appear when there is a page to go to. Bad slots and overla
 - While the server runs you will also see `lodestock.db-wal` and `lodestock.db-shm`. That is normal.
 - **Backups:** copy `lodestock.db` while the server is **stopped**, and copy the `-wal` and `-shm` files with it if they exist.
 - **Reset the whole market:** stop the server and delete the `lodestock.db` files, or use `/lodestock reset all confirm`.
-- Trade history older than `history.keep-days` is deleted at startup.
+- Trade history older than `history.keep-days` is deleted at startup. The lifetime stats behind the all-time leaderboards are small (one row per player and item) and are never deleted.
 - `/lodestock history` finds players who are online or that the server has seen before.
 
 ## Known limits (alpha)

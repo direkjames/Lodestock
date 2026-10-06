@@ -5,6 +5,9 @@ import io.github.direkjames.lodestock.core.market.ItemState;
 import io.github.direkjames.lodestock.core.market.Market;
 import io.github.direkjames.lodestock.core.market.MarketItem;
 import io.github.direkjames.lodestock.core.market.Quote;
+import io.github.direkjames.lodestock.core.stats.Board;
+import io.github.direkjames.lodestock.core.stats.Period;
+import io.github.direkjames.lodestock.core.stats.Row;
 import io.github.direkjames.lodestock.paper.LodestockPlugin;
 import io.github.direkjames.lodestock.paper.config.Messages;
 import io.github.direkjames.lodestock.paper.log.TradeLog;
@@ -25,6 +28,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -57,6 +61,7 @@ public final class LodestockCommand implements TabExecutor {
             case "price" -> price(sender, args);
             case "limits" -> limits(sender);
             case "chart" -> chart(sender, args);
+            case "top" -> top(sender, args);
             case "sellhand" -> sellHand(sender);
             case "sellall" -> sellAll(sender, args);
             case "setprice" -> setPrice(sender, args);
@@ -134,6 +139,85 @@ public final class LodestockCommand implements TabExecutor {
             return;
         }
         plugin.charts().sendText(sender, id, range.get());
+    }
+
+    /** /lodestock top [board] [item] [24h|7d|30d|all] */
+    private void top(CommandSender sender, String[] args) {
+        Messages msg = plugin.messages();
+        if (!allowed(sender, "lodestock.top")) return;
+        List<Board> boards = Arrays.stream(Board.values()).filter(b -> canSeeBoard(sender, b)).toList();
+        if (args.length < 2) {
+            sendTopUsage(sender, boards);
+            return;
+        }
+        Board board = Board.parse(args[1]).orElse(null);
+        if (board == null) {
+            sendTopUsage(sender, boards);
+            return;
+        }
+        if (!canSeeBoard(sender, board)) {
+            msg.send(sender, "no-permission");
+            return;
+        }
+        Period period = Period.WEEK;
+        String item = null;
+        for (int i = 2; i < args.length; i++) {
+            var parsedPeriod = Period.parse(args[i]);
+            if (parsedPeriod.isPresent()) {
+                period = parsedPeriod.get();
+                continue;
+            }
+            String id = normalizeId(args[i]);
+            if (item != null || plugin.market().item(id).isEmpty()) {
+                msg.send(sender, "top-unknown", Placeholder.unparsed("input", args[i]));
+                return;
+            }
+            item = id;
+        }
+        Period shownPeriod = period;
+        String shownItem = item;
+        plugin.leaderboards().fetch(board, period, item, plugin.leaderboards().size()).thenAccept(rows ->
+                plugin.getServer().getScheduler().runTask(plugin, () -> showTop(sender, board, shownPeriod, shownItem, rows)));
+    }
+
+    private boolean canSeeBoard(CommandSender sender, Board board) {
+        return board != Board.NET || sender.hasPermission("lodestock.top.net");
+    }
+
+    private void sendTopUsage(CommandSender sender, List<Board> boards) {
+        plugin.messages().send(sender, "top-usage",
+                Placeholder.unparsed("boards", String.join(", ", boards.stream().map(Board::key).toList())));
+    }
+
+    private void showTop(CommandSender sender, Board board, Period period, String item, List<Row> rows) {
+        Messages msg = plugin.messages();
+        var eco = plugin.economy();
+        msg.send(sender, "top-header",
+                Placeholder.component("title", msg.get("top-board-" + board.key())),
+                Placeholder.component("period", msg.get("top-period-" + period.key())),
+                Placeholder.unparsed("item", item == null ? "" : " - " + ItemNames.pretty(item)));
+        if (rows.isEmpty()) {
+            msg.send(sender, "top-empty");
+            return;
+        }
+        int rank = 1;
+        for (Row row : rows) {
+            String value = board.isMoney() ? eco.format(row.value()) : String.valueOf((long) row.value());
+            if (board == Board.BIGGEST) {
+                msg.send(sender, "top-line-biggest",
+                        Placeholder.unparsed("rank", String.valueOf(rank++)),
+                        Placeholder.unparsed("player", String.valueOf(row.player())),
+                        Placeholder.unparsed("value", value),
+                        Placeholder.component("action", msg.get("top-action-" + String.valueOf(row.action()).toLowerCase(Locale.ROOT))),
+                        Placeholder.unparsed("amount", String.valueOf(row.amount())),
+                        Placeholder.unparsed("item", row.item() == null ? "?" : ItemNames.pretty(row.item())));
+            } else {
+                msg.send(sender, "top-line",
+                        Placeholder.unparsed("rank", String.valueOf(rank++)),
+                        Placeholder.unparsed("player", String.valueOf(row.player())),
+                        Placeholder.unparsed("value", value));
+            }
+        }
     }
 
     private void limits(CommandSender sender) {
@@ -458,12 +542,15 @@ public final class LodestockCommand implements TabExecutor {
             msg.send(sender, "usage-economy");
             return;
         }
-        long since = System.currentTimeMillis() - hours * 3_600_000L;
-        plugin.tradeLog().summaryAsync(since, 5).thenAccept(summary ->
-                plugin.getServer().getScheduler().runTask(plugin, () -> showEconomy(sender, rangeText, summary)));
+        long span = hours * 3_600_000L;
+        long since = System.currentTimeMillis() - span;
+        var current = plugin.tradeLog().summaryAsync(since, 5);
+        var before = plugin.tradeLog().summaryAsync(since - span, since, 1);
+        current.thenCombine(before, (now, earlier) -> new TradeLog.Summary[]{now, earlier}).thenAccept(both ->
+                plugin.getServer().getScheduler().runTask(plugin, () -> showEconomy(sender, rangeText, both[0], both[1])));
     }
 
-    private void showEconomy(CommandSender sender, String range, TradeLog.Summary summary) {
+    private void showEconomy(CommandSender sender, String range, TradeLog.Summary summary, TradeLog.Summary earlier) {
         Messages msg = plugin.messages();
         var eco = plugin.economy();
         TagResolver rangeTag = Placeholder.unparsed("range", range);
@@ -481,6 +568,24 @@ public final class LodestockCommand implements TabExecutor {
         double created = summary.created();
         msg.send(sender, created >= 0 ? "economy-net-up" : "economy-net-down",
                 Placeholder.unparsed("net", eco.format(Math.abs(created))));
+        if (summary.players() > 0) {
+            double each = created / summary.players();
+            msg.send(sender, "economy-per-player",
+                    Placeholder.unparsed("value", (each >= 0 ? "+" : "-") + eco.format(Math.abs(each))));
+        }
+        if (earlier.trades() > 0) {
+            double was = earlier.created();
+            String change;
+            if (Math.abs(was) < 0.005) change = msg.plain("economy-change-new");
+            else {
+                double percent = (created - was) / Math.abs(was) * 100.0;
+                change = msg.plain(percent >= 0 ? "economy-change-up" : "economy-change-down")
+                        .replace("<percent>", PERCENT.format(Math.abs(percent)));
+            }
+            msg.send(sender, "economy-compare", rangeTag,
+                    Placeholder.unparsed("change", change),
+                    Placeholder.unparsed("was", (was >= 0 ? "+" : "-") + eco.format(Math.abs(was))));
+        }
         if (!summary.topEarners().isEmpty()) {
             msg.send(sender, "economy-top-header");
             int rank = 1;
@@ -564,6 +669,7 @@ public final class LodestockCommand implements TabExecutor {
         if (args.length == 1) {
             List<String> options = new ArrayList<>(List.of("help"));
             if (sender.hasPermission("lodestock.use")) options.addAll(List.of("open", "price", "limits", "chart"));
+            if (sender.hasPermission("lodestock.top")) options.add("top");
             if (sender.hasPermission("lodestock.sell.hand")) options.add("sellhand");
             if (sender.hasPermission("lodestock.sell.all")) options.add("sellall");
             for (String name : ADMIN_COMMANDS) {
@@ -583,9 +689,17 @@ public final class LodestockCommand implements TabExecutor {
             if (sub.equals("crash") || sub.equals("surge")) return filter(List.of("10", "25", "50"), typed);
             if (sub.equals("sellall")) return filter(List.of("confirm"), typed);
             if (sub.equals("economy")) return filter(List.of("24h", "7d", "30d"), typed);
+            if (sub.equals("top") && sender.hasPermission("lodestock.top")) {
+                return filter(Arrays.stream(Board.values()).filter(b -> canSeeBoard(sender, b)).map(Board::key).toList(), typed);
+            }
             if (sub.equals("history")) {
                 return filter(plugin.getServer().getOnlinePlayers().stream().map(Player::getName).toList(), typed);
             }
+        }
+        if (args.length >= 3 && sub.equals("top") && sender.hasPermission("lodestock.top")) {
+            List<String> options = new ArrayList<>(List.of("24h", "7d", "30d", "all"));
+            options.addAll(itemIds(typed));
+            return filter(options, typed);
         }
         if (args.length == 3) {
             if (sub.equals("chart")) return filter(List.of("24h", "7d", "all"), typed);

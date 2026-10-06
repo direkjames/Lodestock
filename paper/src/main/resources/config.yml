@@ -55,6 +55,13 @@ price-history:
   # Samples older than this are deleted. 0 keeps everything.
   keep-days: 14
 
+# Leaderboards (/lodestock top and the PlaceholderAPI placeholders).
+leaderboards:
+  # How many lines /lodestock top shows (1 to 50).
+  size: 10
+  # Placeholders read a saved copy of each board and refresh it this often, in seconds (minimum 5).
+  cache-seconds: 30
+
 # Daily limits per player and item. 0 means no limit. Items can set their own daily-buy / daily-sell in items.yml.
 # Players with the permission lodestock.limit.bypass (operators by default) are never limited.
 limits:

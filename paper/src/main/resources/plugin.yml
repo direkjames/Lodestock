@@ -5,12 +5,12 @@ api-version: '1.21.11'
 authors: [ direkjames ]
 description: A stock market for ores. A rework of OreMarket by OllieJW.
 depend: [ Vault ]
-softdepend: [ Essentials ]
+softdepend: [ Essentials, PlaceholderAPI ]
 
 commands:
   lodestock:
     description: Lodestock market commands
-    usage: /<command> [help|open|price|limits|chart|sellhand|sellall|setprice|setstock|reset|crash|surge|stats|history|audit|economy|reload]
+    usage: /<command> [help|open|price|limits|chart|sellhand|sellall|setprice|setstock|reset|crash|surge|stats|history|audit|economy|top|reload]
     aliases: [market, openmarket]
 
 permissions:
@@ -36,6 +36,12 @@ permissions:
       lodestock.sell.gui: true
       lodestock.sell.hand: true
       lodestock.sell.all: true
+  lodestock.top:
+    description: Use /lodestock top (the leaderboards)
+    default: true
+  lodestock.top.net:
+    description: See the net earners leaderboard
+    default: op
   lodestock.chart:
     description: Use /lodestock chart and the price history window
     default: true

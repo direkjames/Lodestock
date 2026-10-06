@@ -1,5 +1,9 @@
 package io.github.direkjames.lodestock.paper.log;
 
+import io.github.direkjames.lodestock.core.stats.Board;
+import io.github.direkjames.lodestock.core.stats.LifetimeStats;
+import io.github.direkjames.lodestock.core.stats.Row;
+import io.github.direkjames.lodestock.paper.stats.StatsStore;
 import io.github.direkjames.lodestock.paper.storage.Database;
 import org.bukkit.entity.Player;
 
@@ -32,9 +36,16 @@ public final class TradeLog {
     }
 
     private final Database db;
+    private final LifetimeStats stats;
 
     public TradeLog(Database db) {
+        this(db, new LifetimeStats());
+    }
+
+    /** {@code stats} is kept up to date with every trade, and saved to the database with it. */
+    public TradeLog(Database db, LifetimeStats stats) {
         this.db = db;
+        this.stats = stats;
     }
 
     public void trade(Player player, String action, String itemId, int amount, double money) {
@@ -44,6 +55,7 @@ public final class TradeLog {
     /** Same as trade(), but without needing a Player. */
     public void recordTrade(long time, UUID uuid, String name, String action, String itemId, int amount, double money) {
         String id = uuid.toString();
+        stats.record(uuid, name, action, itemId, amount, money, time);
         db.write("log trade", c -> {
             try (PreparedStatement ps = c.prepareStatement(
                     "INSERT INTO trades (time, player_uuid, player_name, action, item, amount, money) "
@@ -57,6 +69,7 @@ public final class TradeLog {
                 ps.setDouble(7, money);
                 ps.executeUpdate();
             }
+            StatsStore.upsert(c, uuid, name, action, itemId, amount, money, time);
         });
     }
 
@@ -96,6 +109,11 @@ public final class TradeLog {
 
     /** Totals, the biggest net earners and the items paid out the most, for trades at or after {@code since}. */
     public CompletableFuture<Summary> summaryAsync(long since, int top) {
+        return summaryAsync(since, Long.MAX_VALUE, top);
+    }
+
+    /** Same, for trades from {@code since} up to but not including {@code until}. */
+    public CompletableFuture<Summary> summaryAsync(long since, long until, int top) {
         return db.<Summary>query(c -> {
             int trades = 0;
             int players = 0;
@@ -105,8 +123,9 @@ public final class TradeLog {
                     "SELECT COUNT(*), COUNT(DISTINCT player_uuid), "
                             + "COALESCE(SUM(CASE WHEN action = 'BUY' THEN money END), 0), "
                             + "COALESCE(SUM(CASE WHEN action = 'SELL' THEN money END), 0) "
-                            + "FROM trades WHERE time >= ?")) {
+                            + "FROM trades WHERE time >= ? AND time < ?")) {
                 ps.setLong(1, since);
+                ps.setLong(2, until);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         trades = rs.getInt(1);
@@ -119,25 +138,73 @@ public final class TradeLog {
             List<PlayerNet> earners = new ArrayList<>();
             try (PreparedStatement ps = c.prepareStatement(
                     "SELECT MAX(player_name), SUM(CASE WHEN action = 'SELL' THEN money ELSE -money END) AS net "
-                            + "FROM trades WHERE time >= ? GROUP BY player_uuid ORDER BY net DESC LIMIT ?")) {
+                            + "FROM trades WHERE time >= ? AND time < ? GROUP BY player_uuid ORDER BY net DESC LIMIT ?")) {
                 ps.setLong(1, since);
-                ps.setInt(2, top);
+                ps.setLong(2, until);
+                ps.setInt(3, top);
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) earners.add(new PlayerNet(rs.getString(1), rs.getDouble(2)));
                 }
             }
             List<ItemPayout> items = new ArrayList<>();
             try (PreparedStatement ps = c.prepareStatement(
-                    "SELECT item, SUM(money) AS paid FROM trades WHERE time >= ? AND action = 'SELL' "
+                    "SELECT item, SUM(money) AS paid FROM trades WHERE time >= ? AND time < ? AND action = 'SELL' "
                             + "GROUP BY item ORDER BY paid DESC LIMIT ?")) {
                 ps.setLong(1, since);
-                ps.setInt(2, top);
+                ps.setLong(2, until);
+                ps.setInt(3, top);
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) items.add(new ItemPayout(rs.getString(1), rs.getDouble(2)));
                 }
             }
             return new Summary(trades, players, in, out, earners, items);
         }).exceptionally(error -> new Summary(0, 0, 0, 0, List.of(), List.of()));
+    }
+
+    /**
+     * A leaderboard for trades at or after {@code since}, highest first. {@code item} limits it to one item
+     * (null means all). For all time, use {@link LifetimeStats} instead: old trades are deleted.
+     */
+    public CompletableFuture<List<Row>> topAsync(Board board, long since, String item, int limit) {
+        String value = switch (board) {
+            case SELLERS, SPENDERS -> "SUM(money)";
+            case ACTIVE -> "COUNT(*)";
+            case NET -> "SUM(CASE WHEN action = 'SELL' THEN money ELSE -money END)";
+            case BIGGEST -> "MAX(money)";
+        };
+        String action = switch (board) {
+            case SELLERS -> " AND action = 'SELL'";
+            case SPENDERS -> " AND action = 'BUY'";
+            default -> "";
+        };
+        // With a single MAX() in the query, SQLite takes the other plain columns from that row: the newest
+        // name for the sums, and the biggest trade itself for the biggest board.
+        String columns = board == Board.BIGGEST
+                ? "player_name, " + value + " AS v, action, item, amount, time"
+                : "player_name, " + value + " AS v, MAX(time)";
+        String sql = "SELECT " + columns + " FROM trades WHERE time >= ?" + action
+                + (item == null ? "" : " AND item = ?")
+                + " GROUP BY player_uuid HAVING v > 0 ORDER BY v DESC, player_name LIMIT ?";
+        return db.<List<Row>>query(c -> {
+            List<Row> rows = new ArrayList<>();
+            try (PreparedStatement ps = c.prepareStatement(sql)) {
+                int n = 1;
+                ps.setLong(n++, since);
+                if (item != null) ps.setString(n++, item);
+                ps.setInt(n, limit);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        if (board == Board.BIGGEST) {
+                            rows.add(new Row(rs.getString(1), rs.getDouble(2), rs.getString(3),
+                                    rs.getString(4), rs.getInt(5), rs.getLong(6)));
+                        } else {
+                            rows.add(Row.simple(rs.getString(1), rs.getDouble(2)));
+                        }
+                    }
+                }
+            }
+            return rows;
+        }).exceptionally(error -> List.of());
     }
 
     /** Deletes lines older than the given number of days. 0 or less keeps everything. */

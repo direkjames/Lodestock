@@ -1,6 +1,7 @@
 package io.github.direkjames.lodestock.paper;
 
 import io.github.direkjames.lodestock.core.market.Market;
+import io.github.direkjames.lodestock.core.stats.LifetimeStats;
 import io.github.direkjames.lodestock.paper.command.LodestockCommand;
 import io.github.direkjames.lodestock.paper.config.ConfigLoader;
 import io.github.direkjames.lodestock.paper.config.ConfigWarnings;
@@ -12,10 +13,13 @@ import io.github.direkjames.lodestock.paper.gui.GuiLayoutLoader;
 import io.github.direkjames.lodestock.paper.gui.MenuListener;
 import io.github.direkjames.lodestock.paper.gui.MenuService;
 import io.github.direkjames.lodestock.paper.history.PriceHistoryService;
+import io.github.direkjames.lodestock.paper.leaderboard.LeaderboardService;
 import io.github.direkjames.lodestock.paper.limits.DailyLimits;
 import io.github.direkjames.lodestock.paper.log.TradeLog;
 import io.github.direkjames.lodestock.paper.permission.OrePermissions;
+import io.github.direkjames.lodestock.paper.placeholder.PlaceholderHook;
 import io.github.direkjames.lodestock.paper.recovery.RecoveryTask;
+import io.github.direkjames.lodestock.paper.stats.StatsStore;
 import io.github.direkjames.lodestock.paper.storage.Database;
 import io.github.direkjames.lodestock.paper.storage.SqlMarketStorage;
 import io.github.direkjames.lodestock.paper.trade.TradeService;
@@ -34,6 +38,8 @@ public final class LodestockPlugin extends JavaPlugin {
     private Database database;
     private SqlMarketStorage storage;
     private TradeLog tradeLog;
+    private LifetimeStats lifetime;
+    private LeaderboardService leaderboards;
     private RecoveryTask recovery;
     private DailyLimits limits;
     private PriceHistoryService priceHistory;
@@ -62,7 +68,17 @@ public final class LodestockPlugin extends JavaPlugin {
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
-        tradeLog = new TradeLog(database);
+        lifetime = new LifetimeStats();
+        try {
+            database.<Boolean>query(c -> {
+                StatsStore.loadInto(c, lifetime);
+                return true;
+            }).join();
+        } catch (RuntimeException e) {
+            getLogger().warning("Could not load the lifetime stats, all-time leaderboards will start empty: " + e.getMessage());
+        }
+        tradeLog = new TradeLog(database, lifetime);
+        leaderboards = new LeaderboardService(this, lifetime);
         tradeLog.prune(getConfig().getInt("history.keep-days", 30));
 
         limits = new DailyLimits(this, database);
@@ -98,12 +114,15 @@ public final class LodestockPlugin extends JavaPlugin {
             }
         });
 
+        PlaceholderHook.register(this);
+
         new Metrics(this, BSTATS_ID);
         getLogger().info("Lodestock enabled.");
     }
 
     @Override
     public void onDisable() {
+        PlaceholderHook.unregister();
         if (priceHistory != null) priceHistory.shutdown();
         if (menus != null) menus.stop();
         if (recovery != null) recovery.stop();
@@ -153,6 +172,8 @@ public final class LodestockPlugin extends JavaPlugin {
     public ChartService charts() { return charts; }
     public GuiLayout layout() { return layout; }
     public TradeLog tradeLog() { return tradeLog; }
+    public LifetimeStats lifetime() { return lifetime; }
+    public LeaderboardService leaderboards() { return leaderboards; }
     public DailyLimits limits() { return limits; }
     public PriceHistoryService priceHistory() { return priceHistory; }
     /** Problems found during the last (re)load. */

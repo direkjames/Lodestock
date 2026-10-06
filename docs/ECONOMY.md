@@ -204,18 +204,20 @@ Be careful with crash and surge. If you crash only one item of a pair, for examp
 
 ## Watching your economy
 
-Lodestock has three tools for this:
+Lodestock has these tools for this:
 
 | Command | What it tells you |
 |---|---|
 | `/lodestock audit` | Checks your settings for loops and risky values. It never changes anything. |
 | `/lodestock economy [24h\|7d\|30d]` | How much money the market paid out, how much players spent, the difference, the biggest net earners and the items that paid out the most. |
 | `/lodestock history <player>` | Every trade one player made. |
+| `/lodestock top biggest [item] [period]` | The biggest single trades. A trade far above the rest is worth a look. |
 
 Permissions: `lodestock.admin.audit` and `lodestock.admin.economy` (operators by default).
 
 **How to read `/lodestock economy`**
 
+- *Compared with the period before* shows whether money created is rising or falling, and *per active player* shows it per person, which is a fairer health number than the total.
 - *Money created* is what the market paid out minus what players spent. It is money that did not exist before. A positive number is normal, because that is how players earn. What matters is the trend: compare it each day with how many players were online.
 - If it keeps rising faster than your sinks (rank shops, land claims, repairs, taxes), prices across your server will drift up. That is inflation.
 - Look at the **biggest net earners**. One player far ahead of everyone else usually means a farm, a dupe or an exploit. Open their `/lodestock history`.

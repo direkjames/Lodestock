@@ -1,5 +1,7 @@
 package io.github.direkjames.lodestock.paper.storage;
 
+import io.github.direkjames.lodestock.paper.stats.StatsStore;
+
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -33,7 +35,7 @@ public final class Database {
 
     private static final Job STOP = new Job("stop", c -> {});
     private static final int MAX_BATCH = 200;
-    private static final int SCHEMA_VERSION = 4;
+    private static final int SCHEMA_VERSION = 5;
 
     private final Logger log;
     private final Connection connection;
@@ -119,6 +121,11 @@ public final class Database {
                 st.execute("CREATE TABLE IF NOT EXISTS price_history (item TEXT NOT NULL, time INTEGER NOT NULL, "
                         + "price REAL NOT NULL, stock INTEGER NOT NULL)");
                 st.execute("CREATE INDEX IF NOT EXISTS idx_price_history_item_time ON price_history (item, time)");
+            }
+            if (version < 5) {
+                // 0.4.0: lifetime stats per player and item, for leaderboards that never lose old trades
+                st.execute(StatsStore.CREATE_TABLE);
+                StatsStore.backfill(c);
             }
             st.execute("UPDATE meta SET meta_value = '" + SCHEMA_VERSION + "' WHERE meta_key = 'schema_version'");
             c.commit();
