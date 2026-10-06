@@ -3,6 +3,7 @@ package io.github.direkjames.lodestock.paper.config;
 import io.github.direkjames.lodestock.core.market.MarketItem;
 import io.github.direkjames.lodestock.core.market.MarketSettings;
 import io.github.direkjames.lodestock.core.market.RecoverySettings;
+import io.github.direkjames.lodestock.paper.history.HistorySettings;
 import io.github.direkjames.lodestock.paper.limits.LimitSettings;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
@@ -30,7 +31,7 @@ public final class ConfigLoader {
     public record Pin(int slot, int page) {}
 
     public record Loaded(MarketSettings settings, RecoverySettings recovery, LimitSettings limits,
-                         List<MarketItem> items, Map<String, Pin> pins) {}
+                         HistorySettings history, List<MarketItem> items, Map<String, Pin> pins) {}
 
     /** @throws IllegalArgumentException if the general settings are invalid */
     public static Loaded load(JavaPlugin plugin, ConfigWarnings warn) {
@@ -47,6 +48,7 @@ public final class ConfigLoader {
 
         RecoverySettings recovery = loadRecovery(cfg, warn);
         LimitSettings limits = loadLimits(cfg, warn);
+        HistorySettings history = loadHistory(cfg, warn);
 
         YamlConfiguration itemsCfg = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "items.yml"));
         List<MarketItem> items = new ArrayList<>();
@@ -99,7 +101,23 @@ public final class ConfigLoader {
                 }
             }
         }
-        return new Loaded(settings, recovery, limits, items, pins);
+        return new Loaded(settings, recovery, limits, history, items, pins);
+    }
+
+    /** Bad price history values are replaced with the defaults and reported. */
+    private static HistorySettings loadHistory(FileConfiguration cfg, ConfigWarnings warn) {
+        HistorySettings d = HistorySettings.DEFAULT;
+        int interval = cfg.getInt("price-history.interval-minutes", d.intervalMinutes());
+        if (interval < 1) {
+            warn.add("config.yml: price-history.interval-minutes must be at least 1, using " + d.intervalMinutes() + ".");
+            interval = d.intervalMinutes();
+        }
+        int keep = cfg.getInt("price-history.keep-days", d.keepDays());
+        if (keep < 0) {
+            warn.add("config.yml: price-history.keep-days can't be negative, using " + d.keepDays() + ".");
+            keep = d.keepDays();
+        }
+        return new HistorySettings(cfg.getBoolean("price-history.enabled", d.enabled()), interval, keep);
     }
 
     /** Bad limit values are replaced with safe ones and reported, they never stop the plugin. */

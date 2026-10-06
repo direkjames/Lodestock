@@ -15,6 +15,7 @@ Lodestock is a rework of **[OreMarket](https://github.com/OllieJW/Ore-Market) by
 - A fully configurable window: title, rows, item slots, fill item, page buttons, and items pinned to exact slots.
 - Admin tools: set prices and stock, reset, market crash and surge, stats, and a per-player trade history.
 - Prices that drift back toward their base price and stock that regenerates, so crashes and surges fade on their own (even while the server is off).
+- Price history: press Q on an item for a bar chart of its price (24 hours, 7 days or all time), with a 24h trend line in each item's description and `/lodestock chart` for chat.
 - Daily buy and sell limits per player and item, with a configurable reset time and time zone.
 - Every item has its own permission, `lodestock.ore.<item>`, that everyone has by default, so you can lock items for ranks.
 - Market windows that update by themselves when prices, stock or limits change.
@@ -40,6 +41,7 @@ Open it with `/market`, `/openmarket` or `/lodestock`.
 
 | Click | What it does |
 |---|---|
+| Q (drop key) on an item | Open the price history chart |
 | Left-click an item | Buy 1 |
 | Shift + left-click | Buy several (16 by default, set by `gui.bulk-amount`) |
 | Right-click | Sell 1 |
@@ -56,6 +58,7 @@ Only **plain** items can be sold. Renamed, enchanted or otherwise modified items
 | `/lodestock` (or `/market`, `/openmarket`) | Open the market | `lodestock.use` |
 | `/lodestock price <item>` | Buy price, sell price and stock of one item | `lodestock.use` |
 | `/lodestock limits` | Show what you can still buy and sell today | `lodestock.use` |
+| `/lodestock chart <item> [24h\|7d\|all]` | Price history as a small text chart with low, high, average and change | `lodestock.chart` |
 | `/lodestock sellhand` | Sell the whole stack in your main hand | `lodestock.sell.hand` |
 | `/lodestock sellall` | Show what everything in your inventory would sell for | `lodestock.sell.all` |
 | `/lodestock sellall confirm` | Confirm the sale (within 15 seconds) | `lodestock.sell.all` |
@@ -90,6 +93,7 @@ All of these also work from the console.
 | `lodestock.sell.gui` | everyone | Sell in the market window |
 | `lodestock.sell.hand` | everyone | `/lodestock sellhand` |
 | `lodestock.sell.all` | everyone | `/lodestock sellall` |
+| `lodestock.chart` | everyone | Price history charts (`/lodestock chart` and Q in the market window) |
 | `lodestock.sell.*` | nobody | All four selling permissions |
 | `lodestock.ore.<item>` | everyone | Trade that item, for example `lodestock.ore.diamond`. Created automatically for every item in `items.yml` |
 | `lodestock.ore.*` | everyone | Trade every item |
@@ -134,6 +138,9 @@ Everything lives in `plugins/Lodestock/`:
 | `drift.percent` | `2.0` | Each step, the price closes this percent of its gap to the base price |
 | `regen.enabled` | `true` | Stock moves back toward the starting stock |
 | `regen.percent` | `2.0` | Each step, stock moves this percent of max-stock toward start-stock (at least 1 item) |
+| `price-history.enabled` | `true` | Save price samples for charts and the 24h trend line |
+| `price-history.interval-minutes` | `10` | Minutes between samples. Only items that changed are saved |
+| `price-history.keep-days` | `14` | Delete samples older than this (0 keeps everything) |
 | `limits.daily-buy` | `0` | The most one player can buy of one item per day (0 = no limit) |
 | `limits.daily-sell` | `0` | The most one player can sell of one item per day (0 = no limit) |
 | `limits.reset-time` | `"00:00"` | When a new limit day starts, as `HH:mm` |

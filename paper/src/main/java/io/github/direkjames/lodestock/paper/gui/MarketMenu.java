@@ -15,12 +15,13 @@ public final class MarketMenu implements InventoryHolder {
     public record Button(Kind kind, String target) {}
 
     /** What an item icon currently shows for this viewer. If it has not changed, the icon is not redrawn. */
-    public record View(double price, int stock, boolean locked, int buyLeft, int sellLeft) {}
+    public record View(double price, int stock, boolean locked, int buyLeft, int sellLeft, int trendTenths) {}
 
     private final Map<Integer, Button> buttons = new HashMap<>();
     private final Map<Integer, View> shown = new HashMap<>();
     private long marketVersion = -1;
     private long limitsVersion = -1;
+    private long historyVersion = -1;
     private String day = "";
     private int page = 0;
     private Inventory inventory;
@@ -41,13 +42,15 @@ public final class MarketMenu implements InventoryHolder {
     }
 
     /** True if nothing that the window shows has changed since it was last drawn. */
-    public boolean upToDate(long marketVersion, long limitsVersion, String day) {
-        return this.marketVersion == marketVersion && this.limitsVersion == limitsVersion && this.day.equals(day);
+    public boolean upToDate(long marketVersion, long limitsVersion, long historyVersion, String day) {
+        return this.marketVersion == marketVersion && this.limitsVersion == limitsVersion
+                && this.historyVersion == historyVersion && this.day.equals(day);
     }
 
-    public void markSynced(long marketVersion, long limitsVersion, String day) {
+    public void markSynced(long marketVersion, long limitsVersion, long historyVersion, String day) {
         this.marketVersion = marketVersion;
         this.limitsVersion = limitsVersion;
+        this.historyVersion = historyVersion;
         this.day = day;
     }
 

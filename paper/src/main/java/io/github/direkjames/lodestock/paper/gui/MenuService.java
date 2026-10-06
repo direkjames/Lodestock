@@ -8,6 +8,7 @@ import io.github.direkjames.lodestock.paper.LodestockPlugin;
 import io.github.direkjames.lodestock.paper.config.Messages;
 import io.github.direkjames.lodestock.paper.limits.DailyLimits;
 import io.github.direkjames.lodestock.paper.permission.OrePermissions;
+import io.github.direkjames.lodestock.paper.util.TrendFormat;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -45,11 +46,17 @@ public final class MenuService {
     }
 
     public void open(Player player) {
+        open(player, 0);
+    }
+
+    /** Opens the market on the given page (0-based). */
+    public void open(Player player, int page) {
         GuiLayout layout = plugin.layout();
         MarketMenu menu = new MarketMenu();
         Inventory inventory = Bukkit.createInventory(menu, layout.rows() * 9, Messages.mini(layout.title()));
         menu.setInventory(inventory);
         menu.setViewer(player);
+        menu.setPage(page);
         populate(menu);
         player.openInventory(inventory);
         open.add(menu);
@@ -62,7 +69,8 @@ public final class MenuService {
 
     /** Replaces only the icons that changed since the menu was last drawn. Does nothing if nothing changed. */
     public void sync(MarketMenu menu) {
-        syncIfChanged(menu, plugin.market().version(), plugin.limits().version(), plugin.limits().currentDay());
+        syncIfChanged(menu, plugin.market().version(), plugin.limits().version(),
+                plugin.priceHistory().version(), plugin.limits().currentDay());
     }
 
     /** Updates every open menu whose contents changed. Cheap when nothing changed. */
@@ -70,6 +78,7 @@ public final class MenuService {
         if (open.isEmpty()) return;
         long marketVersion = plugin.market().version();
         long limitsVersion = plugin.limits().version();
+        long historyVersion = plugin.priceHistory().version();
         String day = plugin.limits().currentDay();
         Iterator<MarketMenu> it = open.iterator();
         while (it.hasNext()) {
@@ -79,7 +88,7 @@ public final class MenuService {
                 it.remove(); // closed, or the player left
                 continue;
             }
-            syncIfChanged(menu, marketVersion, limitsVersion, day);
+            syncIfChanged(menu, marketVersion, limitsVersion, historyVersion, day);
         }
     }
 
@@ -112,10 +121,10 @@ public final class MenuService {
         open.clear();
     }
 
-    private void syncIfChanged(MarketMenu menu, long marketVersion, long limitsVersion, String day) {
-        if (menu.upToDate(marketVersion, limitsVersion, day)) return;
+    private void syncIfChanged(MarketMenu menu, long marketVersion, long limitsVersion, long historyVersion, String day) {
+        if (menu.upToDate(marketVersion, limitsVersion, historyVersion, day)) return;
         update(menu);
-        menu.markSynced(marketVersion, limitsVersion, day);
+        menu.markSynced(marketVersion, limitsVersion, historyVersion, day);
     }
 
     /** Compares what each item icon should show now with what it shows, and replaces only the ones that differ. */
@@ -143,7 +152,8 @@ public final class MenuService {
             buyLeft = plugin.limits().remainingBuy(viewer, item);
             sellLeft = plugin.limits().remainingSell(viewer, item);
         }
-        return new MarketMenu.View(state.price(), state.stock(), locked, buyLeft, sellLeft);
+        int trend = TrendFormat.tenths(plugin.priceHistory().trend24h(item.id()));
+        return new MarketMenu.View(state.price(), state.stock(), locked, buyLeft, sellLeft, trend);
     }
 
     private void populate(MarketMenu menu) {
@@ -153,7 +163,8 @@ public final class MenuService {
         inventory.clear();
         menu.clearButtons();
         // Read the versions first, so a change that happens later is noticed by the next check.
-        menu.markSynced(market.version(), plugin.limits().version(), plugin.limits().currentDay());
+        menu.markSynced(market.version(), plugin.limits().version(), plugin.priceHistory().version(),
+                plugin.limits().currentDay());
 
         int pages = layout.pageCount();
         menu.setPage(Math.max(0, Math.min(menu.page(), pages - 1)));
@@ -208,7 +219,8 @@ public final class MenuService {
                 Placeholder.component("sell", sell.ok() ? Component.text(plugin.economy().format(sell.price())) : unavailable),
                 Placeholder.unparsed("stock", String.valueOf(state.stock())),
                 Placeholder.unparsed("max", String.valueOf(item.maxStock())),
-                Placeholder.unparsed("bulk", String.valueOf(bulk))
+                Placeholder.unparsed("bulk", String.valueOf(bulk)),
+                Placeholder.component("trend", TrendFormat.of(plugin.priceHistory().trend24h(item.id())))
         };
         ItemStack stack = new ItemStack(material);
         ItemMeta meta = stack.getItemMeta();
@@ -223,6 +235,15 @@ public final class MenuService {
         }
 
         List<Component> lore = new ArrayList<>(msg.list("gui.item-lore", placeholders));
+        // Trend and the chart hint are separate message lists, so servers that kept an older
+        // lang/en.yml (with an old gui.item-lore) still get them from the built-in English text.
+        if (plugin.priceHistory().enabled()) {
+            // Insert the trend right after the stock line (3rd line), or at the end if the list is short.
+            lore.addAll(Math.min(3, lore.size()), msg.list("gui.item-trend", placeholders));
+            if (viewer == null || viewer.hasPermission("lodestock.chart")) {
+                lore.addAll(msg.list("gui.item-chart-hint", placeholders));
+            }
+        }
         if (viewer != null) {
             DailyLimits limits = plugin.limits();
             int buyLimit = limits.limitFor(item, true);

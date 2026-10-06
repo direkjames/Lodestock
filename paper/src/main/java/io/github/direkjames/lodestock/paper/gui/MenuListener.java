@@ -1,6 +1,9 @@
 package io.github.direkjames.lodestock.paper.gui;
 
 import io.github.direkjames.lodestock.paper.LodestockPlugin;
+import io.github.direkjames.lodestock.paper.permission.OrePermissions;
+import io.github.direkjames.lodestock.paper.util.ItemNames;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -27,6 +30,13 @@ public final class MenuListener implements Listener {
     @EventHandler
     public void onClick(InventoryClickEvent event) {
         Inventory top = event.getView().getTopInventory();
+        if (top.getHolder() instanceof ChartMenu chart) {
+            event.setCancelled(true); // nothing can be moved in or out of a chart either
+            if (event.getWhoClicked() instanceof Player player && event.getClickedInventory() == top) {
+                plugin.charts().handleClick(player, chart, event.getSlot());
+            }
+            return;
+        }
         if (!(top.getHolder() instanceof MarketMenu menu)) return; // not our menu
 
         event.setCancelled(true); // nothing can be moved in or out, whatever the click type
@@ -73,6 +83,17 @@ public final class MenuListener implements Listener {
                 lastTrade.put(player.getUniqueId(), now);
                 plugin.trades().sell(player, itemId, click == ClickType.RIGHT ? 1 : -1);
             }
+            case DROP, CONTROL_DROP -> { // Q opens the price history
+                if (!player.hasPermission("lodestock.chart")) {
+                    plugin.messages().send(player, "no-permission");
+                } else if (!OrePermissions.can(player, itemId)) {
+                    plugin.messages().send(player, "ore-locked", Placeholder.unparsed("item", ItemNames.pretty(itemId)));
+                } else {
+                    int page = menu.page();
+                    later(() -> plugin.charts().open(player, itemId, ChartRange.DAY, page));
+                }
+                return;
+            }
             default -> {
                 return;
             }
@@ -82,7 +103,8 @@ public final class MenuListener implements Listener {
 
     @EventHandler
     public void onDrag(InventoryDragEvent event) {
-        if (event.getView().getTopInventory().getHolder() instanceof MarketMenu) {
+        Object holder = event.getView().getTopInventory().getHolder();
+        if (holder instanceof MarketMenu || holder instanceof ChartMenu) {
             event.setCancelled(true);
         }
     }

@@ -6,10 +6,12 @@ import io.github.direkjames.lodestock.paper.config.ConfigLoader;
 import io.github.direkjames.lodestock.paper.config.ConfigWarnings;
 import io.github.direkjames.lodestock.paper.config.Messages;
 import io.github.direkjames.lodestock.paper.economy.EconomyHook;
+import io.github.direkjames.lodestock.paper.gui.ChartService;
 import io.github.direkjames.lodestock.paper.gui.GuiLayout;
 import io.github.direkjames.lodestock.paper.gui.GuiLayoutLoader;
 import io.github.direkjames.lodestock.paper.gui.MenuListener;
 import io.github.direkjames.lodestock.paper.gui.MenuService;
+import io.github.direkjames.lodestock.paper.history.PriceHistoryService;
 import io.github.direkjames.lodestock.paper.limits.DailyLimits;
 import io.github.direkjames.lodestock.paper.log.TradeLog;
 import io.github.direkjames.lodestock.paper.permission.OrePermissions;
@@ -34,12 +36,14 @@ public final class LodestockPlugin extends JavaPlugin {
     private TradeLog tradeLog;
     private RecoveryTask recovery;
     private DailyLimits limits;
+    private PriceHistoryService priceHistory;
     private final OrePermissions orePermissions = new OrePermissions();
     private Messages messages;
     private Market market;
     private EconomyHook economy;
     private TradeService trades;
     private MenuService menus;
+    private ChartService charts;
     private GuiLayout layout;
     private List<String> warnings = List.of();
 
@@ -62,10 +66,12 @@ public final class LodestockPlugin extends JavaPlugin {
         tradeLog.prune(getConfig().getInt("history.keep-days", 30));
 
         limits = new DailyLimits(this, database);
+        priceHistory = new PriceHistoryService(this, database);
         messages = new Messages(this);
         economy = new EconomyHook(this);
         trades = new TradeService(this);
         menus = new MenuService(this);
+        charts = new ChartService(this);
 
         if (!loadMarket()) {
             getLogger().severe("Lodestock could not start because the config is invalid. Fix it and restart.");
@@ -98,6 +104,7 @@ public final class LodestockPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (priceHistory != null) priceHistory.shutdown();
         if (menus != null) menus.stop();
         if (recovery != null) recovery.stop();
         orePermissions.clear();
@@ -119,6 +126,7 @@ public final class LodestockPlugin extends JavaPlugin {
             market = new Market(loaded.settings(), loaded.recovery(), loaded.items(), storage);
             layout = newLayout;
             limits.configure(loaded.limits());
+            priceHistory.configure(loaded.history());
             orePermissions.sync(loaded.items());
             warnings = List.copyOf(found);
             getLogger().info("Loaded " + loaded.items().size() + " market items.");
@@ -142,9 +150,11 @@ public final class LodestockPlugin extends JavaPlugin {
     public EconomyHook economy() { return economy; }
     public TradeService trades() { return trades; }
     public MenuService menus() { return menus; }
+    public ChartService charts() { return charts; }
     public GuiLayout layout() { return layout; }
     public TradeLog tradeLog() { return tradeLog; }
     public DailyLimits limits() { return limits; }
+    public PriceHistoryService priceHistory() { return priceHistory; }
     /** Problems found during the last (re)load. */
     public List<String> warnings() { return warnings; }
 }

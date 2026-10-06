@@ -139,7 +139,7 @@ class DatabaseTest {
                 return rs.getString(1);
             }
         }).join();
-        assertEquals("3", version);
+        assertEquals("4", version);
         db.close();
 
         Database third = open(); // opening an already upgraded file must work too

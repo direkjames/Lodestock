@@ -51,6 +51,7 @@ public final class LodestockCommand implements TabExecutor {
             case "open", "gui" -> open(sender);
             case "price" -> price(sender, args);
             case "limits" -> limits(sender);
+            case "chart" -> chart(sender, args);
             case "sellhand" -> sellHand(sender);
             case "sellall" -> sellAll(sender, args);
             case "setprice" -> setPrice(sender, args);
@@ -108,6 +109,24 @@ public final class LodestockCommand implements TabExecutor {
                 Placeholder.unparsed("sell", sell.ok() ? plugin.economy().format(sell.price()) : "-"),
                 Placeholder.unparsed("stock", String.valueOf(state.stock())),
                 Placeholder.unparsed("max", String.valueOf(item.maxStock())));
+    }
+
+    private void chart(CommandSender sender, String[] args) {
+        Messages msg = plugin.messages();
+        if (!allowed(sender, "lodestock.chart")) return;
+        if (args.length < 2) {
+            msg.send(sender, "usage-chart");
+            return;
+        }
+        String id = knownItem(sender, args[1]);
+        if (id == null) return;
+        var range = args.length > 2 ? io.github.direkjames.lodestock.paper.gui.ChartRange.parse(args[2])
+                : java.util.Optional.of(io.github.direkjames.lodestock.paper.gui.ChartRange.DAY);
+        if (range.isEmpty()) {
+            msg.send(sender, "usage-chart");
+            return;
+        }
+        plugin.charts().sendText(sender, id, range.get());
     }
 
     private void limits(CommandSender sender) {
@@ -418,7 +437,7 @@ public final class LodestockCommand implements TabExecutor {
 
         if (args.length == 1) {
             List<String> options = new ArrayList<>(List.of("help"));
-            if (sender.hasPermission("lodestock.use")) options.addAll(List.of("open", "price", "limits"));
+            if (sender.hasPermission("lodestock.use")) options.addAll(List.of("open", "price", "limits", "chart"));
             if (sender.hasPermission("lodestock.sell.hand")) options.add("sellhand");
             if (sender.hasPermission("lodestock.sell.all")) options.add("sellall");
             for (String name : ADMIN_COMMANDS) {
@@ -429,7 +448,7 @@ public final class LodestockCommand implements TabExecutor {
 
         String sub = args[0].toLowerCase(Locale.ROOT);
         if (args.length == 2) {
-            if (sub.equals("price") || sub.equals("setprice") || sub.equals("setstock")) return itemIds(typed);
+            if (sub.equals("price") || sub.equals("chart") || sub.equals("setprice") || sub.equals("setstock")) return itemIds(typed);
             if (sub.equals("reset")) {
                 List<String> options = new ArrayList<>(itemIds(typed));
                 if ("all".startsWith(typed)) options.add(0, "all");
@@ -442,6 +461,7 @@ public final class LodestockCommand implements TabExecutor {
             }
         }
         if (args.length == 3) {
+            if (sub.equals("chart")) return filter(List.of("24h", "7d", "all"), typed);
             if (sub.equals("crash") || sub.equals("surge")) return itemIds(typed);
             if (sub.equals("reset") && args[1].equalsIgnoreCase("all")) return filter(List.of("confirm"), typed);
         }

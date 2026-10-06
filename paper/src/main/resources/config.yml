@@ -45,6 +45,14 @@ regen:
   # Low stock refills, and stock piled up by sellers slowly drains.
   percent: 2.0
 
+# Price history: charts (press Q on an item in the market, or /lodestock chart <item>) and the 24h trend line.
+price-history:
+  enabled: true
+  # Minutes between samples. Only items whose price or stock changed are saved.
+  interval-minutes: 10
+  # Samples older than this are deleted. 0 keeps everything.
+  keep-days: 14
+
 # Daily limits per player and item. 0 means no limit. Items can set their own daily-buy / daily-sell in items.yml.
 # Players with the permission lodestock.limit.bypass (operators by default) are never limited.
 limits:

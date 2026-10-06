@@ -2,6 +2,31 @@
 
 All notable changes to Lodestock are listed here. Lodestock uses [semantic versioning](https://semver.org/).
 
+## Unreleased
+
+### Market
+- Price history: every 10 minutes, the price and stock of every item that changed are saved (kept for 14 days by default).
+- Press Q on an item in the market window to open a bar chart of its price: 9 time slices, green when the price went up and red when it went down, with low, high, average and change. Buttons switch between the last 24 hours, 7 days and all time.
+- New `/lodestock chart <item> [24h|7d|all]` command with a one-line text chart and the same numbers.
+- A "Trend (24h)" line and a "Press Q to open the price chart" hint in each item's description.
+- New permission `lodestock.chart` (everyone by default).
+- New `price-history` settings in `config.yml`.
+
+### Storage
+- The database file is upgraded automatically (schema version 4, adds the price history table).
+
+### Upgrading from 0.3.0-beta.1
+Everything works with defaults. To see and change the new settings, add this to your `config.yml`:
+
+```yaml
+price-history:
+  enabled: true
+  interval-minutes: 10   # minutes between samples
+  keep-days: 14          # delete samples older than this (0 = keep everything)
+```
+
+The "Trend (24h)" line and the "Press Q to open the price chart" hint are added by the plugin itself, so they show up even with an older `lang/en.yml`. To change their wording, copy `item-trend` and `item-chart-hint` from the bundled `lang/en.yml` into the `gui:` section of yours.
+
 ## 0.3.0-beta.1 - 2026-10-06
 
 Second public beta. Adds price drift, daily limits, per-item permissions and live market windows. Read "Upgrading from 0.2.0-beta.1" below before updating.

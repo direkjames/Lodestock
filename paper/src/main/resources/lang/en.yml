@@ -1,7 +1,7 @@
 # Shown wherever a message contains <prefix>. Change it here, or remove <prefix> from a message to hide it.
 prefix: "<gray>[<gold>Lodestock<gray>] "
 
-help: "<gold>Lodestock help<newline><yellow>/lodestock<gray> - open the market<newline><yellow>/lodestock price <item><gray> - price and stock of one item<newline><yellow>/lodestock limits<gray> - what you can still buy and sell today<newline><yellow>/lodestock sellhand<gray> - sell the stack in your hand<newline><yellow>/lodestock sellall<gray> - sell everything the market buys in your inventory"
+help: "<gold>Lodestock help<newline><yellow>/lodestock<gray> - open the market<newline><yellow>/lodestock price <item><gray> - price and stock of one item<newline><yellow>/lodestock limits<gray> - what you can still buy and sell today<newline><yellow>/lodestock chart <item> [24h|7d|all]<gray> - price history<newline><yellow>/lodestock sellhand<gray> - sell the stack in your hand<newline><yellow>/lodestock sellall<gray> - sell everything the market buys in your inventory"
 help-admin: "<gold>Admin commands<newline><yellow>/lodestock setprice <item> <price><newline><yellow>/lodestock setstock <item> <amount><newline><yellow>/lodestock reset <item> <gray>(or all)<newline><yellow>/lodestock crash <percent> [item]<newline><yellow>/lodestock surge <percent> [item]<newline><yellow>/lodestock stats<newline><yellow>/lodestock history <player> [page]<newline><yellow>/lodestock reload"
 no-permission: "<prefix><red>You don't have permission to do that."
 unknown-subcommand: "<prefix><red>Unknown command. Try <yellow>/lodestock help<red>."
@@ -49,6 +49,15 @@ limit-now-buy: "<prefix><yellow>That was the last <item> you can buy today. The 
 limit-now-sell: "<prefix><yellow>That was the last <item> you can sell today. The limit resets in <reset>."
 limits-header: "<gold>Your daily limits <gray>(they reset in <reset>)"
 limits-line: "<gray>- <white><item><gray>: buy <white><buy><gray>, sell <white><sell>"
+usage-chart: "<prefix><red>Usage: <yellow>/lodestock chart <item> [24h|7d|all]"
+chart-disabled: "<prefix><red>Price history is turned off on this server."
+chart-none: "<prefix><gray>No price history for <item> yet. Check back in a few minutes."
+chart-header: "<gold><item> <gray>price, last <range>"
+chart-spark: "<white><spark>"
+chart-stats: "<gray>Low <white><low><gray>  High <white><high><gray>  Average <white><average><gray>  Change <change>"
+chart-range-day: "24 hours"
+chart-range-week: "7 days"
+chart-range-all: "all time"
 limits-none: "<prefix><gray>There are no daily limits on this server."
 
 usage-setprice: "<prefix><red>Usage: <yellow>/lodestock setprice <item> <price>"
@@ -94,6 +103,11 @@ gui:
     - "<yellow>Shift + left-click: <white>buy <bulk>"
     - "<yellow>Right-click: <white>sell 1"
     - "<yellow>Shift + right-click: <white>sell all"
+  item-trend:
+    - "<gray>Trend (24h): <trend>"
+  item-chart-hint:
+    - ""
+    - "<aqua>Press Q <gray>to open the price chart"
   item-locked:
     - "<red>Locked"
     - "<gray>Requires a higher rank."
@@ -102,3 +116,22 @@ gui:
     - "<gray>Daily buy left: <white><buy-left>"
     - "<gray>Daily sell left: <white><sell-left>"
     - "<dark_gray>Resets in <reset>"
+  chart-title: "<dark_gray>Price history: <item>"
+  chart-back: "<yellow>Back to the market"
+  chart-close: "<red>Close"
+  chart-range-day: "<yellow>Last 24 hours"
+  chart-range-week: "<yellow>Last 7 days"
+  chart-range-all: "<yellow>All time"
+  chart-no-data: "<gray>No data yet"
+  chart-bar:
+    - "<gray>Price: <green><price>"
+  chart-info:
+    - "<gray>Showing: <white><range>"
+    - "<gray>Low: <white><low>"
+    - "<gray>High: <white><high>"
+    - "<gray>Average: <white><average>"
+    - "<gray>Change: <change>"
+    - "<dark_gray><samples> samples"
+  chart-info-empty:
+    - "<gray>No price history yet."
+    - "<gray>Check back in a few minutes."
