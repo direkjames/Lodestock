@@ -10,7 +10,9 @@ import io.github.direkjames.lodestock.paper.gui.GuiLayout;
 import io.github.direkjames.lodestock.paper.gui.GuiLayoutLoader;
 import io.github.direkjames.lodestock.paper.gui.MenuListener;
 import io.github.direkjames.lodestock.paper.gui.MenuService;
+import io.github.direkjames.lodestock.paper.limits.DailyLimits;
 import io.github.direkjames.lodestock.paper.log.TradeLog;
+import io.github.direkjames.lodestock.paper.permission.OrePermissions;
 import io.github.direkjames.lodestock.paper.recovery.RecoveryTask;
 import io.github.direkjames.lodestock.paper.storage.Database;
 import io.github.direkjames.lodestock.paper.storage.SqlMarketStorage;
@@ -31,6 +33,8 @@ public final class LodestockPlugin extends JavaPlugin {
     private SqlMarketStorage storage;
     private TradeLog tradeLog;
     private RecoveryTask recovery;
+    private DailyLimits limits;
+    private final OrePermissions orePermissions = new OrePermissions();
     private Messages messages;
     private Market market;
     private EconomyHook economy;
@@ -57,6 +61,7 @@ public final class LodestockPlugin extends JavaPlugin {
         tradeLog = new TradeLog(database);
         tradeLog.prune(getConfig().getInt("history.keep-days", 30));
 
+        limits = new DailyLimits(this, database);
         messages = new Messages(this);
         economy = new EconomyHook(this);
         trades = new TradeService(this);
@@ -68,6 +73,7 @@ public final class LodestockPlugin extends JavaPlugin {
             return;
         }
 
+        limits.start();
         recovery = new RecoveryTask(this, database);
         recovery.start();
 
@@ -76,6 +82,7 @@ public final class LodestockPlugin extends JavaPlugin {
         command.setExecutor(handler);
         command.setTabCompleter(handler);
         getServer().getPluginManager().registerEvents(new MenuListener(this), this);
+        getServer().getPluginManager().registerEvents(limits, this);
 
         // Economy plugins can register late, so check once the whole server has finished loading.
         getServer().getScheduler().runTask(this, () -> {
@@ -91,6 +98,7 @@ public final class LodestockPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         if (recovery != null) recovery.stop();
+        orePermissions.clear();
         if (market != null) market.flush();
         if (database != null) database.close(); // writes everything still queued, then closes the file
         getLogger().info("Lodestock disabled.");
@@ -108,6 +116,8 @@ public final class LodestockPlugin extends JavaPlugin {
             if (market != null) market.flush();
             market = new Market(loaded.settings(), loaded.recovery(), loaded.items(), storage);
             layout = newLayout;
+            limits.configure(loaded.limits());
+            orePermissions.sync(loaded.items());
             warnings = List.copyOf(found);
             getLogger().info("Loaded " + loaded.items().size() + " market items.");
 
@@ -131,6 +141,7 @@ public final class LodestockPlugin extends JavaPlugin {
     public MenuService menus() { return menus; }
     public GuiLayout layout() { return layout; }
     public TradeLog tradeLog() { return tradeLog; }
+    public DailyLimits limits() { return limits; }
     /** Problems found during the last (re)load. */
     public List<String> warnings() { return warnings; }
 }

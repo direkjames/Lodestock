@@ -139,11 +139,42 @@ class DatabaseTest {
                 return rs.getString(1);
             }
         }).join();
-        assertEquals("2", version);
+        assertEquals("3", version);
         db.close();
 
         Database third = open(); // opening an already upgraded file must work too
         assertEquals(40, new SqlMarketStorage(third).load("gold_ingot").orElseThrow().stock());
         third.close();
+    }
+
+    @Test
+    void dailyUsageTableExistsAndKeepsOneRowPerPlayerItemAndDay() throws Exception {
+        Database db = open();
+        for (int bought : new int[]{3, 8}) { // the second save replaces the first
+            int value = bought;
+            db.write("save usage", c -> {
+                try (java.sql.PreparedStatement ps = c.prepareStatement(
+                        "INSERT INTO daily_usage (player_uuid, item, day, bought, sold) VALUES (?, ?, ?, ?, ?) "
+                                + "ON CONFLICT(player_uuid, item, day) DO UPDATE SET bought = excluded.bought, sold = excluded.sold")) {
+                    ps.setString(1, "p1");
+                    ps.setString(2, "diamond");
+                    ps.setString(3, "2026-10-06");
+                    ps.setInt(4, value);
+                    ps.setInt(5, 1);
+                    ps.executeUpdate();
+                }
+            });
+        }
+        int[] row = db.query(c -> {
+            try (java.sql.Statement st = c.createStatement();
+                 java.sql.ResultSet rs = st.executeQuery("SELECT COUNT(*), MAX(bought), MAX(sold) FROM daily_usage")) {
+                rs.next();
+                return new int[]{rs.getInt(1), rs.getInt(2), rs.getInt(3)};
+            }
+        }).join();
+        assertEquals(1, row[0]);
+        assertEquals(8, row[1]);
+        assertEquals(1, row[2]);
+        db.close();
     }
 }

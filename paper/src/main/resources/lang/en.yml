@@ -1,7 +1,7 @@
 # Shown wherever a message contains <prefix>. Change it here, or remove <prefix> from a message to hide it.
 prefix: "<gray>[<gold>Lodestock<gray>] "
 
-help: "<gold>Lodestock help<newline><yellow>/lodestock<gray> - open the market<newline><yellow>/lodestock price <item><gray> - price and stock of one item<newline><yellow>/lodestock sellhand<gray> - sell the stack in your hand<newline><yellow>/lodestock sellall<gray> - sell everything the market buys in your inventory"
+help: "<gold>Lodestock help<newline><yellow>/lodestock<gray> - open the market<newline><yellow>/lodestock price <item><gray> - price and stock of one item<newline><yellow>/lodestock limits<gray> - what you can still buy and sell today<newline><yellow>/lodestock sellhand<gray> - sell the stack in your hand<newline><yellow>/lodestock sellall<gray> - sell everything the market buys in your inventory"
 help-admin: "<gold>Admin commands<newline><yellow>/lodestock setprice <item> <price><newline><yellow>/lodestock setstock <item> <amount><newline><yellow>/lodestock reset <item> <gray>(or all)<newline><yellow>/lodestock crash <percent> [item]<newline><yellow>/lodestock surge <percent> [item]<newline><yellow>/lodestock stats<newline><yellow>/lodestock history <player> [page]<newline><yellow>/lodestock reload"
 no-permission: "<prefix><red>You don't have permission to do that."
 unknown-subcommand: "<prefix><red>Unknown command. Try <yellow>/lodestock help<red>."
@@ -40,7 +40,16 @@ sellall-cooldown: "<prefix><red>Please wait <seconds> more second(s) before sell
 sellall-success: "<prefix><green>Sold <items> item(s) for <yellow><money><green>."
 sellall-line: "<gray>- <amount>x <item> <green><money>"
 sellall-more: "<gray>...and <more> more."
-sellall-skipped: "<prefix><gray>Not fully sold (market full or selling off): <items>"
+sellall-skipped: "<prefix><gray>Not fully sold (market full, selling off, daily limit reached or locked): <items>"
+
+ore-locked: "<prefix><red>You don't have access to trade <item>."
+limit-buy-reached: "<prefix><red>You reached today's buy limit for <item>. It resets in <reset>."
+limit-sell-reached: "<prefix><red>You reached today's sell limit for <item>. It resets in <reset>."
+limit-now-buy: "<prefix><yellow>That was the last <item> you can buy today. The limit resets in <reset>."
+limit-now-sell: "<prefix><yellow>That was the last <item> you can sell today. The limit resets in <reset>."
+limits-header: "<gold>Your daily limits <gray>(they reset in <reset>)"
+limits-line: "<gray>- <white><item><gray>: buy <white><buy><gray>, sell <white><sell>"
+limits-none: "<prefix><gray>There are no daily limits on this server."
 
 usage-setprice: "<prefix><red>Usage: <yellow>/lodestock setprice <item> <price>"
 usage-setstock: "<prefix><red>Usage: <yellow>/lodestock setstock <item> <amount>"
@@ -85,3 +94,11 @@ gui:
     - "<yellow>Shift + left-click: <white>buy <bulk>"
     - "<yellow>Right-click: <white>sell 1"
     - "<yellow>Shift + right-click: <white>sell all"
+  item-locked:
+    - "<red>Locked"
+    - "<gray>Requires a higher rank."
+  item-limits:
+    - ""
+    - "<gray>Daily buy left: <white><buy-left>"
+    - "<gray>Daily sell left: <white><sell-left>"
+    - "<dark_gray>Resets in <reset>"

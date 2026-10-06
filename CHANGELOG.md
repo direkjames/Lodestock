@@ -11,8 +11,13 @@ All notable changes to Lodestock are listed here. Lodestock uses [semantic versi
 - Prices and stock set by an admin are left alone until the next trade on that item.
 - New `recovery`, `drift` and `regen` settings in `config.yml`, and optional `drift` / `regen` per item in `items.yml`.
 
+- Daily limits: cap how much one player can buy or sell of an item per day, with a default in `config.yml` and optional per-item `daily-buy` / `daily-sell` in `items.yml`. The reset time and time zone are configurable.
+- New `/lodestock limits` command, and the market window shows what is left.
+- Every item automatically gets a permission, `lodestock.ore.<item>`, that everyone has by default (and `lodestock.ore.*`). Deny it to lock an item for a group or player. Locked items are greyed out and can't be traded.
+- New permission `lodestock.limit.bypass` (operators by default).
+
 ### Storage
-- The database file is upgraded automatically (schema version 2). Existing data is kept.
+- The database file is upgraded automatically (schema version 3). Existing data is kept.
 
 ## 0.2.0-beta.1 - 2026-10-06
 

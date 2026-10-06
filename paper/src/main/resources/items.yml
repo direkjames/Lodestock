@@ -9,6 +9,8 @@
 #   allow-sell   false = players can't sell it (optional)
 #   slot         pin the item to an exact slot in the GUI, counting from 0 (optional)
 #   page         the page for that slot, default 1 (optional)
+#   daily-buy    most one player can buy of this item per day, 0 = no limit (optional, overrides limits.daily-buy)
+#   daily-sell   most one player can sell of this item per day, 0 = no limit (optional, overrides limits.daily-sell)
 #   drift        false = this item's price never drifts back toward base-price (optional)
 #   regen        false = this item's stock never regenerates (optional)
 

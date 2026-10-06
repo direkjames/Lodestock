@@ -33,7 +33,7 @@ public final class Database {
 
     private static final Job STOP = new Job("stop", c -> {});
     private static final int MAX_BATCH = 200;
-    private static final int SCHEMA_VERSION = 2;
+    private static final int SCHEMA_VERSION = 3;
 
     private final Logger log;
     private final Connection connection;
@@ -107,6 +107,12 @@ public final class Database {
                 // 0.3.0: admin-set prices and stock are held back from drift / regeneration
                 st.execute("ALTER TABLE items ADD COLUMN price_held INTEGER NOT NULL DEFAULT 0");
                 st.execute("ALTER TABLE items ADD COLUMN stock_held INTEGER NOT NULL DEFAULT 0");
+            }
+            if (version < 3) {
+                // 0.3.0: how much each player has bought and sold today, for the daily limits
+                st.execute("CREATE TABLE IF NOT EXISTS daily_usage (player_uuid TEXT NOT NULL, item TEXT NOT NULL, "
+                        + "day TEXT NOT NULL, bought INTEGER NOT NULL DEFAULT 0, sold INTEGER NOT NULL DEFAULT 0, "
+                        + "PRIMARY KEY (player_uuid, item, day))");
             }
             st.execute("UPDATE meta SET meta_value = '" + SCHEMA_VERSION + "' WHERE meta_key = 'schema_version'");
             c.commit();

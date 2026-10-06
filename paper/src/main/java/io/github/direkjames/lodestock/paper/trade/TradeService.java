@@ -2,10 +2,13 @@ package io.github.direkjames.lodestock.paper.trade;
 
 import io.github.direkjames.lodestock.core.market.BulkQuote;
 import io.github.direkjames.lodestock.core.market.Market;
+import io.github.direkjames.lodestock.core.market.MarketItem;
 import io.github.direkjames.lodestock.core.market.Quote;
 import io.github.direkjames.lodestock.paper.LodestockPlugin;
 import io.github.direkjames.lodestock.paper.config.Messages;
 import io.github.direkjames.lodestock.paper.economy.EconomyHook;
+import io.github.direkjames.lodestock.paper.limits.DailyLimits;
+import io.github.direkjames.lodestock.paper.permission.OrePermissions;
 import io.github.direkjames.lodestock.paper.util.ItemNames;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Material;
@@ -52,7 +55,18 @@ public final class TradeService {
             return;
         }
 
-        BulkQuote quote = market.previewBuy(itemId, amount);
+        if (!OrePermissions.can(player, itemId)) {
+            locked(player, itemId);
+            return;
+        }
+        MarketItem item = market.item(itemId).orElseThrow();
+        int left = plugin.limits().remainingBuy(player, item);
+        if (left == 0) {
+            limitReached(player, item, true);
+            return;
+        }
+
+        BulkQuote quote = market.previewBuy(itemId, Math.min(amount, left));
         if (!quote.ok()) {
             failure(player, quote.status());
             return;
@@ -76,14 +90,16 @@ public final class TradeService {
 
         // Safety net: anything that somehow doesn't fit is dropped, never lost.
         player.getInventory().addItem(new ItemStack(material, count)).values()
-                .forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
+                .forEach(leftover -> player.getWorld().dropItemNaturally(player.getLocation(), leftover));
         market.recordBuy(itemId, count);
+        plugin.limits().recordBuy(player, item, count);
         plugin.tradeLog().trade(player, "BUY", itemId, count, quote.total());
 
         msg.send(player, "buy-success",
                 Placeholder.unparsed("amount", String.valueOf(count)),
                 Placeholder.unparsed("item", ItemNames.pretty(itemId)),
                 Placeholder.unparsed("money", eco.format(quote.total())));
+        limitNotice(player, item, true);
     }
 
     /** @param amount how many to sell, or -1 for everything of this item the player carries */
@@ -102,6 +118,17 @@ public final class TradeService {
             return;
         }
 
+        if (!OrePermissions.can(player, itemId)) {
+            locked(player, itemId);
+            return;
+        }
+        MarketItem item = market.item(itemId).orElseThrow();
+        int left = plugin.limits().remainingSell(player, item);
+        if (left == 0) {
+            limitReached(player, item, false);
+            return;
+        }
+
         int have = countItems(player, material);
         if (have == 0) {
             msg.send(player, "no-items", Placeholder.unparsed("item", ItemNames.pretty(itemId)));
@@ -113,7 +140,7 @@ public final class TradeService {
                     Placeholder.unparsed("have", String.valueOf(have)));
             return;
         }
-        int want = amount < 0 ? have : amount;
+        int want = Math.min(amount < 0 ? have : amount, left);
 
         BulkQuote quote = market.previewSell(itemId, want);
         if (!quote.ok()) {
@@ -129,17 +156,19 @@ public final class TradeService {
         }
         if (!eco.deposit(player, quote.total())) {
             player.getInventory().addItem(new ItemStack(material, count)).values()
-                    .forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
+                    .forEach(leftover -> player.getWorld().dropItemNaturally(player.getLocation(), leftover));
             msg.send(player, "transaction-failed");
             return;
         }
         market.recordSell(itemId, count);
+        plugin.limits().recordSell(player, item, count);
         plugin.tradeLog().trade(player, "SELL", itemId, count, quote.total());
 
         msg.send(player, "sell-success",
                 Placeholder.unparsed("amount", String.valueOf(count)),
                 Placeholder.unparsed("item", ItemNames.pretty(itemId)),
                 Placeholder.unparsed("money", eco.format(quote.total())));
+        limitNotice(player, item, false);
     }
 
     // ---------- /lodestock sellhand ----------
@@ -170,8 +199,19 @@ public final class TradeService {
             return;
         }
 
+        if (!OrePermissions.can(player, id)) {
+            locked(player, id);
+            return;
+        }
+        MarketItem item = market.item(id).orElseThrow();
+        int left = plugin.limits().remainingSell(player, item);
+        if (left == 0) {
+            limitReached(player, item, false);
+            return;
+        }
+
         int amount = hand.getAmount();
-        BulkQuote quote = market.previewSell(id, amount);
+        BulkQuote quote = market.previewSell(id, Math.min(amount, left));
         if (!quote.ok()) {
             failure(player, quote.status());
             return;
@@ -191,6 +231,7 @@ public final class TradeService {
             player.getInventory().setItemInMainHand(rest);
         }
         market.recordSell(id, count);
+        plugin.limits().recordSell(player, item, count);
         plugin.tradeLog().trade(player, "SELL", id, count, quote.total());
 
         msg.send(player, "sell-success",
@@ -200,6 +241,7 @@ public final class TradeService {
         if (count < amount) {
             msg.send(player, "sell-partial", Placeholder.unparsed("count", String.valueOf(count)));
         }
+        limitNotice(player, item, false);
     }
 
     // ---------- /lodestock sellall ----------
@@ -267,6 +309,7 @@ public final class TradeService {
             // The plan was counted from this same inventory a moment ago, so this always succeeds.
             removeItems(player, entry.material(), entry.count());
             plugin.market().recordSell(entry.id(), entry.count());
+            plugin.limits().recordSell(player, plugin.market().item(entry.id()).orElseThrow(), entry.count());
             plugin.tradeLog().trade(player, "SELL", entry.id(), entry.count(), entry.total());
         }
 
@@ -308,7 +351,12 @@ public final class TradeService {
         int items = 0;
         for (Map.Entry<Material, Integer> e : counts.entrySet()) {
             String id = e.getKey().getKey().getKey();
-            BulkQuote quote = market.previewSell(id, e.getValue());
+            int left = OrePermissions.can(player, id) ? plugin.limits().remainingSell(player, market.item(id).orElseThrow()) : 0;
+            if (left == 0) { // locked for this player, or today's sell limit is used up
+                skipped.add(ItemNames.pretty(id));
+                continue;
+            }
+            BulkQuote quote = market.previewSell(id, Math.min(e.getValue(), left));
             if (!quote.ok()) {
                 skipped.add(ItemNames.pretty(id));
                 continue;
@@ -341,6 +389,25 @@ public final class TradeService {
     }
 
     // ---------- shared helpers ----------
+
+    private void locked(Player player, String itemId) {
+        plugin.messages().send(player, "ore-locked", Placeholder.unparsed("item", ItemNames.pretty(itemId)));
+    }
+
+    private void limitReached(Player player, MarketItem item, boolean buy) {
+        plugin.messages().send(player, buy ? "limit-buy-reached" : "limit-sell-reached",
+                Placeholder.unparsed("item", ItemNames.pretty(item.id())),
+                Placeholder.unparsed("reset", plugin.limits().resetsIn()));
+    }
+
+    /** Tells the player when a trade used up the last of today's allowance. */
+    private void limitNotice(Player player, MarketItem item, boolean buy) {
+        DailyLimits limits = plugin.limits();
+        if (limits.remaining(player, item, buy) != 0) return;
+        plugin.messages().send(player, buy ? "limit-now-buy" : "limit-now-sell",
+                Placeholder.unparsed("item", ItemNames.pretty(item.id())),
+                Placeholder.unparsed("reset", limits.resetsIn()));
+    }
 
     private void failure(Player player, Quote.Status status) {
         Messages msg = plugin.messages();

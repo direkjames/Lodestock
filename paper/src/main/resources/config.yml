@@ -42,6 +42,18 @@ regen:
   # Low stock refills, and stock piled up by sellers slowly drains.
   percent: 2.0
 
+# Daily limits per player and item. 0 means no limit. Items can set their own daily-buy / daily-sell in items.yml.
+# Players with the permission lodestock.limit.bypass (operators by default) are never limited.
+limits:
+  # The most one player can buy of one item per day.
+  daily-buy: 0
+  # The most one player can sell of one item per day.
+  daily-sell: 0
+  # When a new day starts for the limits, as HH:mm (24-hour time).
+  reset-time: "00:00"
+  # Time zone for reset-time: "server" or a name such as Asia/Manila or UTC.
+  timezone: "server"
+
 admin:
   # Announce /lodestock crash and /lodestock surge to the whole server.
   broadcast: true

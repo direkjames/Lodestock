@@ -10,7 +10,7 @@ softdepend: [ Essentials ]
 commands:
   lodestock:
     description: Lodestock market commands
-    usage: /<command> [help|open|price|sellhand|sellall|setprice|setstock|reset|crash|surge|stats|history|reload]
+    usage: /<command> [help|open|price|limits|sellhand|sellall|setprice|setstock|reset|crash|surge|stats|history|reload]
     aliases: [market, openmarket]
 
 permissions:
@@ -36,6 +36,9 @@ permissions:
       lodestock.sell.gui: true
       lodestock.sell.hand: true
       lodestock.sell.all: true
+  lodestock.limit.bypass:
+    description: Not affected by daily buy and sell limits
+    default: op
   lodestock.admin.reload:
     default: op
   lodestock.admin.setprice:

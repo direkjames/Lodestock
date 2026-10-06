@@ -3,6 +3,7 @@ package io.github.direkjames.lodestock.paper.config;
 import io.github.direkjames.lodestock.core.market.MarketItem;
 import io.github.direkjames.lodestock.core.market.MarketSettings;
 import io.github.direkjames.lodestock.core.market.RecoverySettings;
+import io.github.direkjames.lodestock.paper.limits.LimitSettings;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -10,6 +11,9 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -25,8 +29,8 @@ public final class ConfigLoader {
     /** An item pinned to an exact GUI slot. {@code page} starts at 1. */
     public record Pin(int slot, int page) {}
 
-    public record Loaded(MarketSettings settings, RecoverySettings recovery, List<MarketItem> items,
-                         Map<String, Pin> pins) {}
+    public record Loaded(MarketSettings settings, RecoverySettings recovery, LimitSettings limits,
+                         List<MarketItem> items, Map<String, Pin> pins) {}
 
     /** @throws IllegalArgumentException if the general settings are invalid */
     public static Loaded load(JavaPlugin plugin, ConfigWarnings warn) {
@@ -42,6 +46,7 @@ public final class ConfigLoader {
         }
 
         RecoverySettings recovery = loadRecovery(cfg, warn);
+        LimitSettings limits = loadLimits(cfg, warn);
 
         YamlConfiguration itemsCfg = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), "items.yml"));
         List<MarketItem> items = new ArrayList<>();
@@ -76,7 +81,9 @@ public final class ConfigLoader {
                         section.getBoolean("allow-buy", true),
                         section.getBoolean("allow-sell", true),
                         section.getBoolean("drift", true),
-                        section.getBoolean("regen", true)));
+                        section.getBoolean("regen", true),
+                        section.getInt("daily-buy", -1),
+                        section.getInt("daily-sell", -1)));
             } catch (IllegalArgumentException e) {
                 warn.add("items.yml: " + e.getMessage() + " - skipped.");
                 continue;
@@ -92,7 +99,38 @@ public final class ConfigLoader {
                 }
             }
         }
-        return new Loaded(settings, recovery, items, pins);
+        return new Loaded(settings, recovery, limits, items, pins);
+    }
+
+    /** Bad limit values are replaced with safe ones and reported, they never stop the plugin. */
+    private static LimitSettings loadLimits(FileConfiguration cfg, ConfigWarnings warn) {
+        int buy = cfg.getInt("limits.daily-buy", 0);
+        if (buy < 0) {
+            warn.add("config.yml: limits.daily-buy can't be negative, using 0 (no limit).");
+            buy = 0;
+        }
+        int sell = cfg.getInt("limits.daily-sell", 0);
+        if (sell < 0) {
+            warn.add("config.yml: limits.daily-sell can't be negative, using 0 (no limit).");
+            sell = 0;
+        }
+        LocalTime reset = LocalTime.MIDNIGHT;
+        String rawTime = cfg.getString("limits.reset-time", "00:00");
+        try {
+            reset = LocalTime.parse(rawTime.trim());
+        } catch (DateTimeParseException | NullPointerException e) {
+            warn.add("config.yml: limits.reset-time '" + rawTime + "' is not a time like 00:00 or 04:30, using 00:00.");
+        }
+        ZoneId zone = ZoneId.systemDefault();
+        String rawZone = cfg.getString("limits.timezone", "server");
+        if (rawZone != null && !rawZone.isBlank() && !rawZone.trim().equalsIgnoreCase("server")) {
+            try {
+                zone = ZoneId.of(rawZone.trim());
+            } catch (java.time.DateTimeException e) {
+                warn.add("config.yml: limits.timezone '" + rawZone + "' is not a valid time zone (try Asia/Manila or UTC), using the server's time zone.");
+            }
+        }
+        return new LimitSettings(buy, sell, reset, zone);
     }
 
     /** Bad recovery values are replaced with the defaults and reported, they never stop the plugin. */

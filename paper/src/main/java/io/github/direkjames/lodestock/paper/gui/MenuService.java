@@ -6,7 +6,10 @@ import io.github.direkjames.lodestock.core.market.MarketItem;
 import io.github.direkjames.lodestock.core.market.Quote;
 import io.github.direkjames.lodestock.paper.LodestockPlugin;
 import io.github.direkjames.lodestock.paper.config.Messages;
+import io.github.direkjames.lodestock.paper.limits.DailyLimits;
+import io.github.direkjames.lodestock.paper.permission.OrePermissions;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
@@ -17,6 +20,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -33,6 +37,7 @@ public final class MenuService {
         MarketMenu menu = new MarketMenu();
         Inventory inventory = Bukkit.createInventory(menu, layout.rows() * 9, Messages.mini(layout.title()));
         menu.setInventory(inventory);
+        menu.setViewer(player);
         populate(menu);
         player.openInventory(inventory);
     }
@@ -80,7 +85,7 @@ public final class MenuService {
             Material material = Material.matchMaterial(entry.getValue());
             MarketItem item = market.item(entry.getValue()).orElse(null);
             if (material == null || item == null || entry.getKey() >= inventory.getSize()) continue;
-            inventory.setItem(entry.getKey(), itemIcon(item, material));
+            inventory.setItem(entry.getKey(), itemIcon(item, material, menu.viewer()));
             menu.put(entry.getKey(), new MarketMenu.Button(MarketMenu.Kind.ITEM, item.id()));
         }
 
@@ -105,7 +110,7 @@ public final class MenuService {
         }
     }
 
-    private ItemStack itemIcon(MarketItem item, Material material) {
+    private ItemStack itemIcon(MarketItem item, Material material, Player viewer) {
         Market market = plugin.market();
         Messages msg = plugin.messages();
         ItemState state = market.state(item.id()).orElseThrow();
@@ -123,7 +128,31 @@ public final class MenuService {
         };
         ItemStack stack = new ItemStack(material);
         ItemMeta meta = stack.getItemMeta();
-        meta.lore(noItalic(msg.list("gui.item-lore", placeholders)));
+
+        // An item this player has no permission for is shown greyed out, and can't be traded.
+        if (viewer != null && !OrePermissions.can(viewer, item.id())) {
+            meta.displayName(Component.translatable(material.translationKey()).color(NamedTextColor.GRAY)
+                    .decoration(TextDecoration.ITALIC, false));
+            meta.lore(noItalic(msg.list("gui.item-locked", placeholders)));
+            stack.setItemMeta(meta);
+            return stack;
+        }
+
+        List<Component> lore = new ArrayList<>(msg.list("gui.item-lore", placeholders));
+        if (viewer != null) {
+            DailyLimits limits = plugin.limits();
+            int buyLimit = limits.limitFor(item, true);
+            int sellLimit = limits.limitFor(item, false);
+            if (buyLimit > 0 || sellLimit > 0) {
+                TagResolver[] limitTags = {
+                        Placeholder.unparsed("buy-left", limits.describe(limits.remainingBuy(viewer, item), buyLimit)),
+                        Placeholder.unparsed("sell-left", limits.describe(limits.remainingSell(viewer, item), sellLimit)),
+                        Placeholder.unparsed("reset", limits.resetsIn())
+                };
+                lore.addAll(msg.list("gui.item-limits", limitTags));
+            }
+        }
+        meta.lore(noItalic(lore));
         stack.setItemMeta(meta);
         return stack;
     }

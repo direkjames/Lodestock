@@ -51,6 +51,7 @@ Only **plain** items can be sold. Renamed, enchanted or otherwise modified items
 |---|---|---|
 | `/lodestock` (or `/market`, `/openmarket`) | Open the market | `lodestock.use` |
 | `/lodestock price <item>` | Buy price, sell price and stock of one item | `lodestock.use` |
+| `/lodestock limits` | Show what you can still buy and sell today | `lodestock.use` |
 | `/lodestock sellhand` | Sell the whole stack in your main hand | `lodestock.sell.hand` |
 | `/lodestock sellall` | Show what everything in your inventory would sell for | `lodestock.sell.all` |
 | `/lodestock sellall confirm` | Confirm the sale (within 15 seconds) | `lodestock.sell.all` |
@@ -86,10 +87,17 @@ All of these also work from the console.
 | `lodestock.sell.hand` | everyone | `/lodestock sellhand` |
 | `lodestock.sell.all` | everyone | `/lodestock sellall` |
 | `lodestock.sell.*` | nobody | All four selling permissions |
+| `lodestock.ore.<item>` | everyone | Trade that item, for example `lodestock.ore.diamond`. Created automatically for every item in `items.yml` |
+| `lodestock.ore.*` | everyone | Trade every item |
+| `lodestock.limit.bypass` | op | Not affected by daily limits |
 | `lodestock.admin.reload`, `.setprice`, `.setstock`, `.reset`, `.crash`, `.surge`, `.stats`, `.history` | op | One per admin command |
 | `lodestock.admin.*` | op | All admin permissions |
 
 Each selling method has its own permission, so you can, for example, allow the window but not `sellall` for new players (with a permissions plugin such as LuckPerms).
+
+### Per-item permissions
+
+Every item in `items.yml` gets its own permission automatically, `lodestock.ore.<item>` (for example `lodestock.ore.diamond` or `lodestock.ore.raw_iron`). **Everyone has all of them by default**, so nothing changes until you take one away. To lock an item, set its permission to `false` for a group or player in your permissions plugin, or set `lodestock.ore.*` to `false` and give back only the items you want. Locked items are shown greyed out in the window, and can't be bought or sold. The permissions are created when the server starts and on `/lodestock reload`, so a new item is covered straight away.
 
 ## Configuration
 
@@ -121,6 +129,10 @@ Everything lives in `plugins/Lodestock/`:
 | `drift.percent` | `2.0` | Each step, the price closes this percent of its gap to the base price |
 | `regen.enabled` | `true` | Stock moves back toward the starting stock |
 | `regen.percent` | `2.0` | Each step, stock moves this percent of max-stock toward start-stock (at least 1 item) |
+| `limits.daily-buy` | `0` | The most one player can buy of one item per day (0 = no limit) |
+| `limits.daily-sell` | `0` | The most one player can sell of one item per day (0 = no limit) |
+| `limits.reset-time` | `"00:00"` | When a new limit day starts, as `HH:mm` |
+| `limits.timezone` | `"server"` | Time zone for the reset: `server`, or a name such as `Asia/Manila` or `UTC` |
 | `admin.broadcast` | `true` | Announce crash and surge to everyone |
 | `history.keep-days` | `30` | Delete trade history older than this at startup (0 keeps everything) |
 
@@ -146,6 +158,8 @@ diamond:
 | `allow-sell` | no | `false` means players can't sell it |
 | `slot` | no | Pin the item to an exact slot in the window (counting from 0) |
 | `page` | no | The page for that slot (default 1) |
+| `daily-buy` | no | This item's daily buy limit per player. Overrides `limits.daily-buy` (0 = no limit) |
+| `daily-sell` | no | This item's daily sell limit per player. Overrides `limits.daily-sell` (0 = no limit) |
 | `drift` | no | `false` means this item's price never drifts back toward its base price |
 | `regen` | no | `false` means this item's stock never regenerates |
 
@@ -182,6 +196,7 @@ The page buttons only appear when there is a page to go to. Bad slots and overla
 - **Recovery:** every `recovery.interval-minutes`, prices drift back toward `base-price` and stock moves back toward `start-stock`, so crashes, surges and heavy selling fade on their own. The pull is stronger when the price is far from the base and gentle when it is close.
 - Time the server was offline is caught up on startup (up to `recovery.catch-up-hours`).
 - A price set with `/lodestock setprice` (or stock set with `setstock`) is left alone until the next trade on that item. `crash` and `surge` do fade.
+- **Daily limits:** with `limits.daily-buy` / `limits.daily-sell` (or the per-item `daily-buy` / `daily-sell`), each player can only buy or sell so many of an item per day. Bulk trades, `sellhand` and `sellall` go up to what is left and keep the rest in the inventory. The window and `/lodestock limits` show what is left. Counts are saved, so relogging or restarting doesn't reset them. Operators (and anyone with `lodestock.limit.bypass`) are never limited, so test with a normal account.
 - If the economy plugin refuses a payment (for example a money cap), the trade is cancelled and nothing is taken.
 
 ## Data and history

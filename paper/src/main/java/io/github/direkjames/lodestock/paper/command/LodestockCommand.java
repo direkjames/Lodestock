@@ -50,6 +50,7 @@ public final class LodestockCommand implements TabExecutor {
             case "help" -> help(sender);
             case "open", "gui" -> open(sender);
             case "price" -> price(sender, args);
+            case "limits" -> limits(sender);
             case "sellhand" -> sellHand(sender);
             case "sellall" -> sellAll(sender, args);
             case "setprice" -> setPrice(sender, args);
@@ -107,6 +108,30 @@ public final class LodestockCommand implements TabExecutor {
                 Placeholder.unparsed("sell", sell.ok() ? plugin.economy().format(sell.price()) : "-"),
                 Placeholder.unparsed("stock", String.valueOf(state.stock())),
                 Placeholder.unparsed("max", String.valueOf(item.maxStock())));
+    }
+
+    private void limits(CommandSender sender) {
+        Messages msg = plugin.messages();
+        if (!(sender instanceof Player player)) {
+            msg.send(sender, "player-only");
+            return;
+        }
+        if (!allowed(sender, "lodestock.use")) return;
+        var limits = plugin.limits();
+        List<MarketItem> limited = plugin.market().items().stream()
+                .filter(item -> limits.limitFor(item, true) > 0 || limits.limitFor(item, false) > 0)
+                .toList();
+        if (limited.isEmpty()) {
+            msg.send(sender, "limits-none");
+            return;
+        }
+        msg.send(sender, "limits-header", Placeholder.unparsed("reset", limits.resetsIn()));
+        for (MarketItem item : limited) {
+            msg.send(sender, "limits-line",
+                    Placeholder.unparsed("item", ItemNames.pretty(item.id())),
+                    Placeholder.unparsed("buy", limits.describe(limits.remainingBuy(player, item), limits.limitFor(item, true))),
+                    Placeholder.unparsed("sell", limits.describe(limits.remainingSell(player, item), limits.limitFor(item, false))));
+        }
     }
 
     private void sellHand(CommandSender sender) {
@@ -393,7 +418,7 @@ public final class LodestockCommand implements TabExecutor {
 
         if (args.length == 1) {
             List<String> options = new ArrayList<>(List.of("help"));
-            if (sender.hasPermission("lodestock.use")) options.addAll(List.of("open", "price"));
+            if (sender.hasPermission("lodestock.use")) options.addAll(List.of("open", "price", "limits"));
             if (sender.hasPermission("lodestock.sell.hand")) options.add("sellhand");
             if (sender.hasPermission("lodestock.sell.all")) options.add("sellall");
             for (String name : ADMIN_COMMANDS) {
